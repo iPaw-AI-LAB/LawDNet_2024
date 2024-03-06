@@ -54,6 +54,7 @@ log/
 *.tar
 *.npy
 *.txt
+*.mov
 
 
 
