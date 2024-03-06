@@ -37,16 +37,27 @@
 [【腾讯文档】DINet常用命令-dengjunli](
 https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
 
+### 代码使用说明
+
+### 训练 
+和DINet一样
+[codebase仓库DINet](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
+
+#### 测试：
+
+```./Exp-of-Junli/prediction-deng.ipynb```
+
 
 ## 实验记录demo
 [飞书云文档](https://y5ucgsxnni.feishu.cn/docx/QSxadxHp0o6bgLxiiEbc0nvNnZd)
 
 
 ## 评价指标
-
+[数据集评测指标代码](https://gitee.com/dengjunli/evaluation_wav2lip)
 
 ## 资源
 [原仓库DINet](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
+
 
 
 
