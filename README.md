@@ -33,7 +33,6 @@ python train_LawDNet_clip.py --config_path "./config/experiment/config_experimen
 3. 音频处理的函数 `./audio_processing.py`
 
 
-
 # 做数据集的代码
 [基于syncnet-python修改](https://github.com/iPaw-AI-LAB/syncnet)
 
@@ -58,16 +57,19 @@ python train_LawDNet_clip.py --config_path "./config/experiment/config_experimen
 [【腾讯文档】DINet常用命令-dengjunli](
 https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
 
-## 实验记录demo
-[飞书云文档](https://y5ucgsxnni.feishu.cn/docx/QSxadxHp0o6bgLxiiEbc0nvNnZd)
+### 实验记录+demo
+[飞书云文档实验记录和demo](https://y5ucgsxnni.feishu.cn/docx/QSxadxHp0o6bgLxiiEbc0nvNnZd)
 
-## 论文地址
+### 论文地址
 [overleaf 需审批](https://www.overleaf.com/read/vkhhnxrvwbdw#3778eb)
 
-## 评价指标
+### 宣传网页
+[LawDNet主页]https://github.com/Fannovel16/ComfyUI-MotionDiff
+
+### 评价指标
 [数据集评测指标代码](https://gitee.com/dengjunli/evaluation_wav2lip)
 
-## 资源
+### 资源
 [原仓库DINet](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
 
 
