@@ -9,7 +9,7 @@
 
 ## 训练 
 
-采用coarse to fine 的训练策略
+采用coarse to fine 的训练策略，每个阶段有自己的config文件，父文件是```./config/config.py```
 ```python
 python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_64.py" --name "name_of_this_experiment" 
 python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_128.py" --name "name_of_this_experiment" 

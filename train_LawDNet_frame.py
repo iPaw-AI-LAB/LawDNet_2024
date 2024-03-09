@@ -42,9 +42,6 @@ def load_experiment_config(config_module_path):
 
 
 def load_config_and_device(args):
-    # import pdb; pdb.set_trace()
-
-
     # 动态加载配置文件
     experiment_config = load_experiment_config(args.config_path)
 
@@ -61,6 +58,9 @@ def load_config_and_device(args):
     '''加载配置和设置设备'''
     os.environ["CUDA_VISIBLE_DEVICES"] = opt.cuda_devices
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # 根据实验名称直接修改文件夹名字
+    opt.result_path = opt.result_path + '_' + args.name
 
     return opt, device
 
@@ -196,10 +196,6 @@ def train(
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay):
         net_g.train()
         for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
-            print("仅供测试！！！！！！！！")
-            if iteration == 2:
-                break
-
             source_image_data, reference_clip_data, deepspeech_feature, flag = data
             if not (flag.equal(torch.ones(opt.batch_size, 1, device='cuda'))):
                 print("Skipping batch with dirty data")

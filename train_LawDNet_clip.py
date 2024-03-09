@@ -89,6 +89,9 @@ def load_config_and_device(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = opt.cuda_devices
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # 根据实验名称直接修改文件夹名字
+    opt.result_path = opt.result_path + '_' + args.name
+
     return opt, device
 
 # Save configuration to a YAML file
@@ -208,9 +211,6 @@ def train(
     smooth_sqmask = SmoothSqMask().cuda()
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay + 1):
         for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
-            print("仅供测试！！！！！！！！")
-            if iteration == 2:
-                break
             source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag = data
 
             # 检查是否有脏数据
