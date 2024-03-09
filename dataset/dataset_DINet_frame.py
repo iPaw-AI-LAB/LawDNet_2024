@@ -18,7 +18,7 @@ def get_data(json_name, augment_num):
     :param augment_num: 数据增强的次数。
     :return: 数据集的名称列表和数据字典。
     """
-    print('开始加载数据')
+    print('开始加载数据 from json file...', json_name)
     with open(json_name, 'r') as f:
         data_dic = json.load(f)
     data_dic_name_list = []

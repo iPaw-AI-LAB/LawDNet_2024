@@ -49,7 +49,7 @@ def get_data(json_name,augment_num):
     :param augment_num: 数据增强的次数。
     :return: 数据集的名称列表和数据字典。
     """
-    print('start loading data')
+    print('start loading data from json file...', json_name)
     with open(json_name,'r') as f:
         data_dic = json.load(f)
     data_dic_name_list = []
@@ -105,21 +105,18 @@ class DINetDataset(Dataset):
         source_clip_list, reference_clip_list, deep_speech_list, reference_for_dV = [], [], [], []
 
         # 随机选择一个源视频片段作为锚点
-        source_anchor = random.randint(0, video_clip_num - 1)
+        source_anchor = random.sample(range(video_clip_num), 1)[0]
 
         for frame_index in range(2, 7):  # 一次加载5帧
             try:
                 source_frame_path = self.data_dic[video_name]['clip_data_list'][source_anchor]['frame_path_list'][frame_index]
                 source_frame = self.preprocess_image_data(source_frame_path)
                 source_clip_list.append(source_frame)
-                source_clip_mask_list.append(source_frame)  # 假定mask处理相同
+                # source_clip_mask_list.append(source_frame)  # 假定mask处理相同
                 
                 # 加载深度语音特征
-                deep_speech_feature = self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list'][frame_index - 2:frame_index + 3]
-                deep_speech_list.append(deep_speech_feature)
-                
-                # 加载参考视频片段
-                reference_clip = self.load_reference_clips(video_name, video_clip_num)
+                deep_speech_array = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list'][frame_index - 2:frame_index + 3])
+                deep_speech_list.append(deep_speech_array)
 
             except IndexError or KeyError:
                 # 数据索引出错，返回零样本
@@ -130,12 +127,18 @@ class DINetDataset(Dataset):
             print("deep_speech_list 数据无效, path:",video_name)
             return self.zero_sample_with_batch()
 
-        # 转换Python列表为PyTorch张量
-        source_clip = torch.stack([torch.tensor(x).permute(2, 0, 1) for x in source_clip]).float().to(self.device)
-        source_clip_mask = torch.stack([torch.tensor(x).permute(2, 0, 1) for x in source_clip_mask]).float().to(self.device)
-        deep_speech_clip = torch.tensor(deep_speech_clip).float().to(self.device)
-        deep_speech_full = torch.tensor(deep_speech_full).float().to(self.device)
-        reference_clip = torch.stack([torch.tensor(x).permute(2, 0, 1) for x in reference_clip]).float().to(self.device)
+        # 加载参考视频片段
+        reference_clip_list = self.load_reference_clips(video_name, video_clip_num)
+
+        source_clip = np.stack(source_clip_list, 0)
+        deep_speech_full = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list'])
+        deep_speech_clip = np.stack(deep_speech_list, 0)
+        reference_clip = np.stack(reference_clip_list, 0)
+
+        source_clip = torch.from_numpy(source_clip).float().permute(0, 3, 1, 2).to(self.device)
+        reference_clip = torch.from_numpy(reference_clip).float().permute(0, 3, 1, 2).to(self.device)
+        deep_speech_clip = torch.from_numpy(deep_speech_clip).float().permute(0, 2, 1).to(self.device)
+        deep_speech_full = torch.from_numpy(deep_speech_full).permute(1, 0).to(self.device) 
 
         return source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag
 

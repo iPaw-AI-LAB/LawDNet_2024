@@ -6,5 +6,7 @@ experiment_config = {
     'batch_size': 32,
     'coarse2fine': True,  # 从预训练模型开始训练
     'coarse_model_path': './output/training_model_weight/frame_training_64/netG_model_epoch_1.pth',
-    'result_path': './output/training_model_weight/frame_training_128'
+    'result_path': './output/training_model_weight/frame_training_128',
+    'non_decay': 1,
+    'decay': 1
 }

@@ -12,6 +12,8 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import wandb
 import yaml
+import argparse
+
 from torch.cuda.amp import autocast as autocast
 from models.Discriminator import Discriminator
 from models.VGG19 import Vgg19
@@ -24,7 +26,6 @@ from torch.utils.data import DataLoader
 from dataset.dataset_DINet_clip import DINetDataset
 from models.Gaussian_blur import Gaussian_bluring
 from tensor_processing import SmoothSqMask
-from tensor_processing_deng import concat_ref_and_src
 from models.content_model import AudioContentModel, LipContentModel
 from torch.nn.utils import clip_grad_norm_
 
@@ -58,6 +59,14 @@ def replace_images(fake_out, source_clip):
 def init_wandb(name):
     wandb.login()
     run = wandb.init(project=name)
+
+def load_experiment_config(config_module_path):
+    """动态加载指定的配置文件"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("config_module", config_module_path)
+    config_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(config_module)
+    return config_module.experiment_config
 
 # 加载配置和设备设置
 def load_config_and_device(args):
@@ -178,10 +187,12 @@ def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimiz
     config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
     save_config_to_yaml(config_dict, config_out_path)
     
+    # 混合精度训练：Creates a GradScaler once at the beginning of training.
+    scaler = torch.cuda.amp.GradScaler(enabled=True)
+
     smooth_sqmask = SmoothSqMask().cuda()
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay + 1):
-        net_g.train()
-        for iteration, data in tqdm(enumerate(training_data_loader)):
+        for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
             source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag = data
 
             # 检查是否有脏数据
@@ -211,7 +222,7 @@ def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimiz
                 _, pred_real_dI = net_dI(source_clip)
                 loss_dI_real = criterionGAN(pred_real_dI, True)
                 loss_dI = (loss_dI_fake + loss_dI_real) * 0.5
-            scaler.scale(loss_dI).backward()
+            scaler.scale(loss_dI).backward(retain_graph=True)
             scaler.step(optimizer_dI)
 
             # 更新判别器DV
@@ -224,7 +235,7 @@ def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimiz
                 _, pred_real_dV = net_dV(condition_real_dV)
                 loss_dV_real = criterionGAN(pred_real_dV, True)
                 loss_dV = (loss_dV_fake + loss_dV_real) * 0.5
-            scaler.scale(loss_dV).backward()
+            scaler.scale(loss_dV).backward(retain_graph=True)
             scaler.step(optimizer_dV)
 
             # 更新生成器
@@ -268,7 +279,7 @@ def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimiz
 
                 # -----------------MSE损失计算部分----------------- #
                 loss_img = criterionMSE(fake_out, source_clip)
-
+                
                 loss_g = (loss_img * opt.lambda_img + loss_g_perception * opt.lamb_perception + loss_g_dI * opt.lambda_g_dI + loss_g_dV * opt.lambda_g_dV + loss_sync * opt.lamb_syncnet_perception)
             scaler.scale(loss_g).backward()
             scaler.step(optimizer_g)
@@ -276,15 +287,33 @@ def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimiz
 
             # 记录到WandB
             if iteration % opt.freq_wandb == 0:
-                log_to_wandb(source_clip,  fake_out)
-                wandb.log({"epoch": epoch, "loss_dI": loss_dI.item(), "loss_dV": loss_dV.item(), "loss_g": loss_g.item()})
-        
+                log_to_wandb(source_clip, fake_out)
+                wandb.log({
+                    "epoch": epoch, 
+                    "loss_dI": loss_dI.item(), 
+                    "loss_dV": loss_dV.item(), 
+                    "loss_g": loss_g.item(), 
+                    "loss_img": loss_img.item(), 
+                    "loss_g_perception": loss_g_perception.item(), 
+                    "loss_g_dI": loss_g_dI.item(), 
+                    "loss_g_dV": loss_g_dV.item(), 
+                    "loss_sync": loss_sync.item()
+                })
+                print(
+                    f"Epoch {epoch}, Iteration {iteration}, "
+                    f"loss_dI: {loss_dI.item()}, loss_dV: {loss_dV.item()}, "
+                    f"loss_g: {loss_g.item()}, loss_img: {loss_img.item()}, "
+                    f"loss_g_perception: {loss_g_perception.item()}, "
+                    f"loss_g_dI: {loss_g_dI.item()}, loss_g_dV: {loss_g_dV.item()}, "
+                    f"loss_sync: {loss_sync.item()}"
+                )
+
         # 更新学习率
         update_learning_rate(net_g_scheduler, optimizer_g)
         update_learning_rate(net_dI_scheduler, optimizer_dI)
         update_learning_rate(net_dV_scheduler, optimizer_dV)
 
-        if epoch % opt.checkpoint_interval == 0:
+        if epoch % opt.checkpoint == 0:
             save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI, optimizer_dV)
 
 

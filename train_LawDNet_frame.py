@@ -10,6 +10,8 @@ from torch.cuda.amp import autocast as autocast
 import wandb
 import argparse
 import time
+import yaml
+from tqdm import tqdm
 
 from models.Discriminator import Discriminator
 from models.VGG19 import Vgg19
@@ -139,8 +141,9 @@ def setup_schedulers(optimizer_g, optimizer_dI, opt):
     net_dI_scheduler = get_scheduler(optimizer_dI, opt.non_decay, opt.decay)
     return net_g_scheduler, net_dI_scheduler
 
-import numpy as np
-import wandb
+def save_config_to_yaml(config, filename):
+    with open(filename, 'w') as file:
+        yaml.dump(config, file, default_flow_style=False)
 
 def log_to_wandb(source_image_data, fake_out):
     """
@@ -173,9 +176,12 @@ def train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimi
     config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
     save_config_to_yaml(config_dict, config_out_path)
 
+    # 混合精度训练：Creates a GradScaler once at the beginning of training.
+    scaler = torch.cuda.amp.GradScaler(enabled=True)
+
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay):
         net_g.train()
-        for iteration, data in enumerate(training_data_loader):
+        for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
             source_image_data, reference_clip_data, deepspeech_feature, flag = data
             if not (flag.equal(torch.ones(opt.batch_size, 1, device='cuda'))):
                 print("Skipping batch with dirty data")
@@ -204,8 +210,8 @@ def train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimi
                 _, pred_real_dI = net_dI(source_image_data)
                 loss_dI_real = criterionGAN(pred_real_dI, True)
                 loss_dI = (loss_dI_fake + loss_dI_real) * 0.5
-            loss_dI.backward()
-            optimizer_dI.step()
+            scaler.scale(loss_dI).backward(retain_graph=True)
+            scaler.step(optimizer_dI)
 
             # Update generator G
             optimizer_g.zero_grad()
@@ -226,21 +232,31 @@ def train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimi
                 loss_img = criterionL2(fake_out, source_image_data)
 
                 loss_g = loss_img * opt.lambda_img + loss_g_perception * opt.lamb_perception + loss_g_dI * opt.lambda_g_dI
-            loss_g.backward()
-            optimizer_g.step()
+            scaler.scale(loss_g).backward()
+            scaler.step(optimizer_g)
+            # 混合精度训练
+            scaler.update()
 
-            # Logging to WandB
             if iteration % opt.freq_wandb == 0:
                 log_to_wandb(source_image_data, fake_out)
-                wandb.log({"epoch": epoch, "loss_dI": loss_dI.item(), "loss_g": loss_g.item()})
-                print(f"Epoch {epoch}, iteration {iteration}, loss_dI: {loss_dI.item()}, loss_g: {loss_g.item()}")
+                wandb.log({
+                    "epoch": epoch,
+                    "loss_dI": loss_dI.item(),
+                    "loss_g": loss_g.item(),
+                    "loss_img": loss_img.item(),
+                    "loss_g_perception": loss_g_perception.item(),
+                    "loss_g_dI": loss_g_dI.item()
+                })
+                print(f"\nEpoch {epoch}, iteration {iteration}, loss_dI: {loss_dI.item()}, loss_g: {loss_g.item()}, "
+                    f"loss_img: {loss_img.item()}, loss_g_perception: {loss_g_perception.item()}, "
+                    f"loss_g_dI: {loss_g_dI.item()}")
 
         # Update learning rates
         update_learning_rate(net_g_scheduler, optimizer_g)
         update_learning_rate(net_dI_scheduler, optimizer_dI)
 
         # Save checkpoint
-        if epoch % opt.checkpoint_interval == 0:
+        if epoch % opt.checkpoint == 0:
             save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI)
 
 def save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI):

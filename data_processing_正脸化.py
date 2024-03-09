@@ -311,7 +311,7 @@ def crop_face_according_openfaceLM_multithreading(openface_landmark_dir, video_f
     with ThreadPool(processes=22) as pool:
         pool.map(process_video, landmark_openface_path_list)
 
-    print("save landmark_crop_dic.npy")
+    print("save landmark_crop_dic.npy") # 保存左上角坐标
     np.save('./asserts/training_data/landmark_crop_dic.npy', landmark_crop_dic)
 
 

@@ -5,5 +5,7 @@ experiment_config = {
     'mouth_region_size': 64,
     'batch_size': 64,
     'coarse2fine': False,  # 从随机初始化开始训练
-    'result_path': './output/training_model_weight/frame_training_64'
+    'result_path': './output/training_model_weight/frame_training_64',
+    'non_decay': 1,
+    'decay': 1
 }

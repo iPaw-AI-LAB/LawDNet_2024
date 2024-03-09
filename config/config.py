@@ -61,7 +61,7 @@ class DINetTrainingOptions():
         self.parser.add_argument('--train_data', type=str, default=r"{}/training_json.json".format(self.training_data_path),
                             help='path of training json')
         self.parser.add_argument('--batch_size', type=int, default=24, help='training batch size')
-        self.parser.add_argument('--freq_wandb', type=int, default=200, help='上传图片到wandb的频率')
+        self.parser.add_argument('--freq_wandb', type=int, default=100, help='上传图片到wandb的频率')
 
         self.parser.add_argument('--lr_g', type=float, default=0.0001, help='initial learning rate for adam')
         self.parser.add_argument('--lr_dI', type=float, default=0.0001, help='initial learning rate for adam')

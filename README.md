@@ -14,9 +14,7 @@
 python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_64.py" --name "name_of_this_experiment" 
 python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_128.py" --name "name_of_this_experiment" 
 python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_256.py" --name "name_of_this_experiment" 
-```
 
-```python
 python train_LawDNet_clip.py --config_path "./config/experiment/config_experiment_clip_256.py" --name "name_of_this_experiment" 
 ```
 
