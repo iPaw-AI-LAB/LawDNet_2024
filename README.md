@@ -17,6 +17,7 @@ python train_LawDNet_frame.py --config_path "./config/experiment/config_experime
 
 python train_LawDNet_clip.py --config_path "./config/experiment/config_experiment_clip_256.py" --name "name_of_this_experiment" 
 ```
+或直接执行脚本：```sh ./train_sequence.sh```
 
 [基于codebase仓库DINet重构](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
 

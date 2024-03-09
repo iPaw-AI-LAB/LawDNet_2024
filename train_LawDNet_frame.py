@@ -88,7 +88,7 @@ def init_networks(opt):
     return net_g, net_dI, net_vgg
 
 # 设置优化器
-def setup_optimizers(net_g, net_dI):
+def setup_optimizers(net_g, net_dI, opt):
     '''设置网络的优化器'''
     optimizer_g = optim.AdamW(net_g.parameters(), lr=opt.lr_g)
     optimizer_dI = optim.AdamW(net_dI.parameters(), lr=opt.lr_dI)
@@ -154,6 +154,9 @@ def log_to_wandb(source_image_data, fake_out):
     - fake_out: The generated images from the network.
     """
     # Log source images
+    source_clip = source_image_data.float()  # 将数据转换为全精度
+    fake_out = fake_out.float()        # 同上 
+
     source_images = []
     for i in range(source_image_data.shape[0]):  # Limit to first 5 images
         img = source_image_data[i].permute(1, 2, 0).detach().cpu().numpy()
@@ -170,11 +173,22 @@ def log_to_wandb(source_image_data, fake_out):
     wandb.log({"Generated Images": fake_images})
 
 
-def train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimizer_dI, criterionGAN, criterionL1, criterionL2, net_g_scheduler, net_dI_scheduler):
+def train(
+    opt, 
+    net_g, 
+    net_dI, 
+    net_vgg, 
+    training_data_loader, 
+    optimizer_g, 
+    optimizer_dI, 
+    criterionGAN, 
+    criterionL1, 
+    criterionL2, 
+    net_g_scheduler, 
+    net_dI_scheduler
+):
+
     smooth_sqmask = SmoothSqMask().cuda()
-    config_dict = vars(opt)
-    config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
-    save_config_to_yaml(config_dict, config_out_path)
 
     # 混合精度训练：Creates a GradScaler once at the beginning of training.
     scaler = torch.cuda.amp.GradScaler(enabled=True)
@@ -182,6 +196,10 @@ def train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimi
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay):
         net_g.train()
         for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
+            print("仅供测试！！！！！！！！")
+            if iteration == 2:
+                break
+
             source_image_data, reference_clip_data, deepspeech_feature, flag = data
             if not (flag.equal(torch.ones(opt.batch_size, 1, device='cuda'))):
                 print("Skipping batch with dirty data")
@@ -258,6 +276,10 @@ def train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimi
         # Save checkpoint
         if epoch % opt.checkpoint == 0:
             save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI)
+        if epoch % opt.checkpoint == 1:
+            config_dict = vars(opt)
+            config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
+            save_config_to_yaml(config_dict, config_out_path)
 
 def save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI):
 
@@ -299,7 +321,7 @@ if __name__ == "__main__":
 
     net_g, net_dI, net_vgg = init_networks(opt)
 
-    optimizer_g, optimizer_dI = setup_optimizers(net_g, net_dI)
+    optimizer_g, optimizer_dI = setup_optimizers(net_g, net_dI, opt)
 
     load_coarse2fine_checkpoint(net_g, opt)
 

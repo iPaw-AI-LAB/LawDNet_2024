@@ -170,6 +170,9 @@ def setup_schedulers(optimizer_g, optimizer_dI, optimizer_dV):
     return net_g_scheduler, net_dI_scheduler, net_dV_scheduler
 
 def log_to_wandb(source_clip, fake_out):
+    source_clip = source_clip.float()  # 将数据转换为全精度
+    fake_out = fake_out.float()        # 同上
+
     # 可视化原始source_clip
     images_source = [wandb.Image(source_clip[i].cpu(), caption=f"Source Clip {i}") for i in range(source_clip.shape[0])]
     wandb.log({"Source Clips": images_source})
@@ -181,11 +184,23 @@ def log_to_wandb(source_clip, fake_out):
 
 
 # 训练过程
-def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimizer_dI, optimizer_dV, criterionGAN, criterionL1, criterionMSE, criterionCosine, net_g_scheduler, net_dI_scheduler, net_dV_scheduler):
-    # 保存opt参数设置到本地供检查,加时间戳
-    config_dict = vars(opt)
-    config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
-    save_config_to_yaml(config_dict, config_out_path)
+def train(
+    opt, 
+    net_g, 
+    net_dI, 
+    net_dV, 
+    training_data_loader, 
+    optimizer_g, 
+    optimizer_dI, 
+    optimizer_dV, 
+    criterionGAN, 
+    criterionL1, 
+    criterionMSE, 
+    criterionCosine, 
+    net_g_scheduler, 
+    net_dI_scheduler, 
+    net_dV_scheduler
+):
     
     # 混合精度训练：Creates a GradScaler once at the beginning of training.
     scaler = torch.cuda.amp.GradScaler(enabled=True)
@@ -193,6 +208,9 @@ def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimiz
     smooth_sqmask = SmoothSqMask().cuda()
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay + 1):
         for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
+            print("仅供测试！！！！！！！！")
+            if iteration == 2:
+                break
             source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag = data
 
             # 检查是否有脏数据
@@ -279,7 +297,7 @@ def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimiz
 
                 # -----------------MSE损失计算部分----------------- #
                 loss_img = criterionMSE(fake_out, source_clip)
-                
+
                 loss_g = (loss_img * opt.lambda_img + loss_g_perception * opt.lamb_perception + loss_g_dI * opt.lambda_g_dI + loss_g_dV * opt.lambda_g_dV + loss_sync * opt.lamb_syncnet_perception)
             scaler.scale(loss_g).backward()
             scaler.step(optimizer_g)
@@ -315,13 +333,15 @@ def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimiz
 
         if epoch % opt.checkpoint == 0:
             save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI, optimizer_dV)
+        if epoch % opt.checkpoint == 1:
+            config_dict = vars(opt)
+            config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
+            save_config_to_yaml(config_dict, config_out_path)
 
 
 
 # 检查点保存
 def save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI, optimizer_dV):
-    if not os.path.exists(opt.result_path):
-        os.makedirs(opt.result_path, exist_ok=True)
     model_out_path = os.path.join(opt.result_path, f'netG_model_epoch_{epoch}.pth')
     states = {
         'epoch': epoch + 1,
