@@ -6,9 +6,9 @@
 # zip_path="/root/autodl-tmp/DINet-gitee/DINet-update/asserts/training_data/split_video_25fps_crop_face.zip"
 
 # # 要压缩的文件夹路径
-folder_path="./training_data"
+folder_path="./training_data-正脸化的crop"
 # # 压缩后的 zip 文件路径和名称
-compressed_path="./中文数据集training_data目录.tar.gz"
+compressed_path="./HDTF数据集training_data目录.tar.gz"
 
 extracted_path="./解压"
 

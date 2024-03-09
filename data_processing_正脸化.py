@@ -1,3 +1,6 @@
+'''
+说明：制作数据集的代码，包括提取视频帧、提取音频、提取deep speech特征、根据openface的landmark裁剪人脸、生成训练json文件
+'''
 import glob
 import os
 import subprocess

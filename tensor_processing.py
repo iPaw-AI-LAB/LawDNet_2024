@@ -1,3 +1,11 @@
+'''
+说明：用于对张量进行处理的函数，包括高斯模糊，正脸对齐，特征图可视化等
+'''
+
+import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+
 import torch
 import torchvision.transforms as transforms
 import torch.nn as nn
@@ -111,80 +119,6 @@ class SmoothMask(nn.Module):
       masked_output =  w_origin*input_face  + w_mask*torch.mean(input_face,dim=[-1,-2],keepdim=True)
 
     return masked_output
-
-# class SmoothMask(nn.Module):
-#   def __init__(self, radius=60,sigma=20,padding='same',bias=0.08,scaling=80):
-#     super(SmoothMask, self).__init__()
-#     self.gaussian_bluringer = Gaussian_bluring(radius=radius,sigma=sigma,padding=padding)
-#     self.bias = bias
-#     self.scaling = scaling
-
-#   def forward(self, input_face, landmarks, filling='black'):
-#     """
-#     input_face: B*3*H*W
-#     landmarks: B*68*2
-#     """
-#     B, C, H, W = input_face.shape
-#     device = input_face.device
-
-#     landmarks_keys_part1 = landmarks[...,range(3,14),:] #
-#     landmarks_keys_part2 = landmarks[...,range(48,68),:] # 
-#     landmarks_keys_part3 = landmarks[...,range(6,11),:] #
-
-#     landmarks_keys_part11 = (landmarks_keys_part1 - landmarks[...,30:31,:])*0.7 + landmarks[...,30:31,:]
-#     landmarks_keys_part21 = (landmarks_keys_part1 - landmarks[...,30:31,:])*0.9 + landmarks[...,30:31,:]
-#     landmarks_keys_part22 = (landmarks_keys_part2 - landmarks[...,30:31,:])*1.2 + landmarks[...,30:31,:]
-
-#     landmarks_keys = torch.cat((landmarks_keys_part11,landmarks_keys_part2,landmarks_keys_part3,landmarks_keys_part21,landmarks_keys_part22),axis=-2)
-
-#     landmarks_index_Y_test = torch.clip(landmarks_keys[...,1], 0, H-1).round().type(torch.LongTensor).to(device)
-#     landmarks_index_X_test = torch.clip(landmarks_keys[...,0], 0, W-1).round().type(torch.LongTensor).to(device)
-
-
-#     heatmap_mask = torch.zeros_like(input_face[:,0:1,:,:])
-
-#     heatmap_mask[...,landmarks_index_Y_test,landmarks_index_X_test] = 1
-
-#     heatmap_mask = self.gaussian_bluringer (heatmap_mask)
-#     heatmap_mask = heatmap_mask/heatmap_mask.max() # 归一化
-
-#     # 5. 将遮罩赋值给source_clip_mask
-#     w_mask = torch.sigmoid((heatmap_mask-self.bias)*self.scaling) #########
-
-
-#     w_mask[(w_mask < 1e-5)] = 0
-
-#     w_mask[(w_mask > 1-1e-5)] = 1
-
-#     w_origin = 1 - w_mask
-
-#     if filling == 'black':
-#       masked_output =  w_origin*input_face  #+ w_mask*torch.zeros_like(input_face)
-
-#     if filling == 'mean':
-      
-#       masked_output =  w_origin*input_face  + w_mask*torch.mean(input_face,dim=[-1,-2],keepdim=True)
-
-#     return masked_output
-
-
-# def warp_img_torch(img, transform_matrix, output_size):
-
-#     # please pay exact attention on the order of H and W,
-#     # and the normalization of the grid in Torch, but not in OpenCV
-#     device = img.device
-#     B, C, H, W = img.shape
-#     T = torch.Tensor([[2 / (W-1), 0, -1],
-#               [0, 2 / (H-1), -1],
-#               [0, 0, 1]]).to(device).repeat(B,1,1)
-    
-#     T2 = torch.Tensor([[2 / (output_size[1]-1), 0, -1],[0, 2 / (output_size[0]-1), -1],[0, 0, 1]]).to(device).repeat(B,1,1)
-#     M_torch = torch.matmul(T2,torch.matmul(transform_matrix,torch.linalg.inv(T)))
-#     grid_trans = torch.linalg.inv(M_torch)[:,0:2,:]
-
-#     grid = F.affine_grid(grid_trans, torch.Size((B, C, output_size[0], output_size[1])))
-#     img = F.grid_sample(img, grid)
-#     return img
 
 def warp_img_torch(img, transform_matrix, output_size):
 
@@ -368,130 +302,91 @@ class SmoothSqMask(nn.Module):
   
     return masked_output
 
-# class FaceAlign(nn.Module):
-#   def __init__(self, coverage_rt=0.9 ,device='cuda'):
-#     super(FaceAlign, self).__init__()
 
-#     self.coverage_rt = coverage_rt
-
-#     self.standard_lm_25 = torch.tensor([[2.13256e-04, 1.06454e-01],
-#        [7.52622e-02, 3.89150e-02],
-#        [1.81130e-01, 1.87482e-02],
-#        [2.90770e-01, 3.44891e-02],
-#        [3.93397e-01, 7.73906e-02],
-#        [5.86856e-01, 7.73906e-02],
-#        [6.89483e-01, 3.44891e-02],
-#        [7.99124e-01, 1.87482e-02],
-#        [9.04991e-01, 3.89150e-02],
-#        [9.80040e-01, 1.06454e-01],
-#        [4.90127e-01, 2.03352e-01],
-#        [4.90127e-01, 3.07009e-01],
-#        [4.90127e-01, 4.09805e-01],
-#        [4.90127e-01, 5.15625e-01],
-#        [3.66880e-01, 5.87326e-01],
-#        [4.26036e-01, 6.09345e-01],
-#        [4.90127e-01, 6.28106e-01],
-#        [5.54217e-01, 6.09345e-01],
-#        [6.13373e-01, 5.87326e-01],
-#        [1.21737e-01, 2.16423e-01],
-#        [3.34606e-01, 2.31733e-01],
-#        [6.45647e-01, 2.31733e-01],
-#        [8.58516e-01, 2.16423e-01],
-#        [2.54149e-01, 7.80233e-01],
-#        [7.26104e-01, 7.80233e-01]], device=device).float()
-
- 
-#   def forward(self, feed_img, bbox, landmarks_tensor):
-#     """
-#     feed_img: B*C*H*W
-#     bbox: B*4
-#     landmarks: B*68*2
-#     """
-    
-#     Batch_size, C, H, W = feed_img.shape
-
-#     bbox_size = bbox[:,2:4] - bbox[:,0:2]
-#     w, h = bbox_size[:,0], bbox_size[:,1]
-
-#     input_shape2 = ['None', 3, 192, 192]
-
-#     input_size = tuple(input_shape2[2:4][::-1])
-
-#     center = (bbox[:,0:2] + bbox[:,2:4])/2
+### 以上为yihao，以下为junli
 
 
-#     #center = landmarks_tensor[:,30,:]
-
-#     list68to25 = list(range(17,37))+[39,42,45,48,54]
-#     lmrks_25 = landmarks_tensor[:,list68to25,:].view(Batch_size,25,2)
 
 
-#     # uni_landmarks_25 = torch.from_numpy(uni_landmarks_68).to(device).repeat(Batch_size,1,1)
 
-#     Similarity_Matrix_3d_final = SimilarityTransform_torch_2D(lmrks_25, self.standard_lm_25.repeat(Batch_size,1,1))
+def concat_ref_and_src(src, ref):
+    '''
+    input: B*1,15,h,w ; B*1,15,h,w  （原图 ，参考帧）
+    output: B*1,30,h,w
+    '''
 
-#     theta = torch.arctan(Similarity_Matrix_3d_final[:,1,0]/Similarity_Matrix_3d_final[:,0,0])*180/torch.pi
+    # 原图和参考帧的张量维度
+    original_frames = src
+    reference_frames = ref
 
-#     output_size = min(feed_img.shape[-2:])
-#     # output_size_w = 746
-#     # output_size_h = 1102 
+    # 提取A人物的原图（1，15，h，w）
+    A_original = original_frames[0:1, :, :, :]
+    # 提取A人物的参考帧（1，15，h，w）
+    A_reference = reference_frames[0:1, :, :, :]
 
-#     coverage = self.coverage_rt*min(feed_img.shape[-2:])/torch.max(bbox_size.float(),dim=-1, keepdim=True)[0]
+    # 提取B人物的原图（1，15，h，w）
+    B_original = original_frames[1:2, :, :, :]
+    # 提取B人物的参考帧（1，15，h，w）
+    B_reference = reference_frames[1:2, :, :, :]
 
-#     face_align_matrix = transform_torch(center, (int(output_size), output_size), coverage, theta)
+    # 将A人物的原图和参考帧按通道拼接为（1，30，h，w）
+    # import pdb; pdb.set_trace()
+    try:
+        A_combined = torch.cat((A_original, A_reference), dim=1)
+    except Exception as e:
+        import pdb; pdb.set_trace()
 
-#     center_align = torch.matmul(face_align_matrix[:,:2,:2], center.unsqueeze(-1)) + face_align_matrix[:,:2,-1:]
+    # 将B人物的原图和参考帧按通道拼接为（1，30，h，w）
+    B_combined = torch.cat((B_original, B_reference), dim=1)
 
-#     face_align_matrix[:,:2,2:3] += - center_align + output_size/2
+    combined = torch.cat((A_combined, B_combined), dim=0)
 
+    return combined
 
-#     face_align_img = warp_img_torch(feed_img, face_align_matrix, (int(output_size), output_size))
+def gamma_correction(img, gamma=2.0):
+    # 使用Gamma值校正图像
+    corrected = np.power(img, 1 / gamma)
+    return np.clip(corrected, 0, 1)
 
-#     face_align_img = torch.clip(face_align_img, 0, 255)
+def save_feature_map(ref_in_feature,filename_prefix):
 
-#     lmrks_align = torch.matmul(landmarks_tensor,face_align_matrix[:,:2,:2].transpose(-1,-2)) + face_align_matrix[:,:2,-1:].transpose(-1,-2)
+    # plt.imshow(feature_image, cmap='viridis')  # 使用viridis色图，您也可以选择其他色图如'gray'
+    # plt.axis('off')
+    # plt.colorbar()  # 添加颜色条以显示数值范围
+    # plt.savefig('feature_visualization.png', bbox_inches='tight', pad_inches=0)
 
-#     return face_align_img, lmrks_align, face_align_matrix
+    # # 归一化到0-255范围
+    # feature_image_normalized = ((feature_image - feature_image.min()) / (feature_image.max() - feature_image.min()) * 255).astype(np.uint8)
+    # cv2.imwrite('/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/Exp-of-Junli/特征图可视化-feature_visualization.png', feature_image_normalized)
+    # print('特征图可视化-feature_visualization.png已保存')
 
+    # 可视化并保存ref_in_feature的前几个特征通道
+    num_channels_to_save = 10  # 您可以修改这个值以保存更多或更少的通道
+    image_path = "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/Exp-of-Junli/"
 
-#   def recover(self, fake_part, origin_img, face_align_matrix):
+    for channel in range(num_channels_to_save):
+        feature_image = ref_in_feature[0, channel].cpu().detach().numpy()
 
-#     Batch_size, C, H, W = origin_img.shape
+        # 使用Gamma校正提亮特征图像
+        feature_image = gamma_correction(feature_image)
 
-#     device = origin_img.device
-
-#     assert fake_part.shape[-2] == fake_part.shape[-1]
-
-#     output_size = fake_part.shape[-2]
-
-#     face_align_matrix_inversed = torch.inverse(face_align_matrix)
-
-#     # grid = F.affine_grid(torch.eye(3,device=device).unsqueeze(0)[:,0:2,:].repeat(B,1,1), torch.Size((B, C, output_size, output_size)))
-#     grid = standard_grid((output_size,output_size),Batch_size,device=device)
-
-#     grid_index =  (grid+1.0-1.0/output_size)*(output_size-1)/(2-2/output_size)
-#     grid_index_reversed = torch.matmul(grid_index.view(Batch_size,-1,2),face_align_matrix_inversed[:,:2,:2].transpose(-1,-2)) + face_align_matrix_inversed[:,:2,-1:].transpose(-1,-2)
-#     grid_index_reversed = grid_index_reversed.view(Batch_size,output_size,output_size,2).long()
-
-  
-#     #lmrks_align_reversed_np = lmrks_align_reversed[layer_index].cpu().numpy()
-
-#     reform_img_2 = origin_img.permute(1,0,2,3).contiguous()
-
-#     grid_index_reversed_2 = torch.cat([torch.range(0,Batch_size-1,device=device).long().view(Batch_size,1,1,1).repeat(1,output_size,output_size,1),grid_index_reversed],dim=-1)
-
-#     index_set = (grid_index_reversed_2[...,0],
-#                 grid_index_reversed_2[...,2],
-#                 grid_index_reversed_2[...,1])
-
-#     new_value = fake_part.permute(1,0,2,3)
+        # 使用matplotlib的viridis colormap进行彩色映射
+        feature_colored = plt.get_cmap('viridis')((feature_image - feature_image.min()) / (feature_image.max() - feature_image.min()))
+        feature_colored = (feature_colored[:, :, :3] * 255).astype(np.uint8)  # 去除alpha通道并转换为0-255
 
 
-#     for i in range(channel:=3):
-#         reform_img_2[i] = reform_img_2[i].index_put(index_set, new_value[i]) 
+        # 为每个通道保存一个唯一的文件名
+        filename = f'{filename_prefix}_channel_{channel}_colored.png'
+        cv2.imwrite(image_path + filename, cv2.cvtColor(feature_colored, cv2.COLOR_RGB2BGR))
 
-#     # reform_img_2[:,grid_index_reversed_2[:,:,:,2],grid_index_reversed_2[:,:,:,1], grid_index_reversed_2[:,:,:,0]] = fake_img.permute(1,0,2,3)
+        # 归一化到0-255范围
+        feature_image_normalized = ((feature_image - feature_image.min()) / (feature_image.max() - feature_image.min()) * 255).astype(np.uint8)
+        
+        # 为每个通道保存一个唯一的文件名
+        filename = f'{filename_prefix}_channel_{channel}_gray.png'
+        cv2.imwrite(image_path + filename, feature_image_normalized)
+        print(f'{filename_prefix}_channel_{channel}_colored.png', '已保存')
 
-#     reform_img = reform_img_2.permute(1,0,2,3)
+    return None
 
-#     return reform_img
+

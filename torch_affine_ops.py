@@ -2,31 +2,6 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 
-# def transform_torch(center, output_size, scale, rotation):
-
-#     device = center.device
-#     Batch_size = center.shape[0]
-
-#     rot = rotation * torch.pi / 180.0
-#     #translation = (output_size/2-center[0]*scale_ratio, output_size/2-center[1]*scale_ratio)
-#     scale_matrix = torch.eye(3,device=device).repeat(Batch_size,1,1)*scale.view(Batch_size,1,1)
-#     scale_matrix[:,-1,-1] =1
-#     center_scale = center.view(Batch_size,2)*scale.view(Batch_size,1)
-
-#     scale_matrix[:,:2,-1] = - center_scale
-#     #transform_matrix = scale_matrix - torch.tensor([[0,0,center_scale[0]],[0,0,center_scale[1]],[0,0,0]]).to(device).repeat(Batch_size,1,1)
-
-#     #transform_matrix = scale_matrix - transform_matrix
-#     rotation_matrix = torch.cat([torch.cos(rot).view(Batch_size,1), -torch.sin(rot).view(Batch_size,1), torch.zeros(Batch_size,1).to(device), torch.sin(rot).view(Batch_size,1), torch.cos(rot).view(Batch_size,1), torch.zeros(Batch_size,1).to(device), torch.zeros(Batch_size,3).to(device)], dim=-1).view(Batch_size,3,3)
-#     rotation_matrix[:,-1,-1] = 1
-
-#     #rotation_matrix = torch.tensor([[torch.cos(rot), -torch.sin(rot), 0], [torch.sin(rot), torch.cos(rot), 0], [0, 0, 1]]).to(device)
-#     transform_matrix = torch.matmul(rotation_matrix,scale_matrix)
-#     recenter_matrix = torch.tensor([[1,0,output_size[0]/2],[0,1,output_size[1]/2],[0,0,1]]).to(device).repeat(Batch_size,1,1)
-#     transform_matrix = torch.matmul(recenter_matrix,transform_matrix)
-
-#     return transform_matrix
-
 def standard_grid(size,batch_size=1,device='cuda'):
     """
     equivalent to 

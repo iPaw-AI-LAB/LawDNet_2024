@@ -1,14 +1,3 @@
-from models.Discriminator import Discriminator
-from models.VGG19 import Vgg19
-from models.LawDNet_new import LawDNet
-from utils.training_utils import get_scheduler, update_learning_rate, GANLoss
-from torch.utils.data import DataLoader
-from dataset.dataset_DINet_frame import DINetDataset
-from sync_batchnorm import convert_model
-from config.config import DINetTrainingOptions
-from tensor_processing import SmoothSqMask
-from models.Gaussian_blur import Gaussian_bluring
-
 import cv2
 import random
 import numpy as np
@@ -19,12 +8,25 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.cuda.amp import autocast as autocast
 import wandb
+import argparse
+
+from models.Discriminator import Discriminator
+from models.VGG19 import Vgg19
+from models.LawDNet import LawDNet
+from utils.training_utils import get_scheduler, update_learning_rate, GANLoss
+from torch.utils.data import DataLoader
+from dataset.dataset_DINet_frame import DINetDataset
+from sync_batchnorm import convert_model
+from config.config import DINetTrainingOptions
+from tensor_processing import SmoothSqMask
+from models.Gaussian_blur import Gaussian_bluring
+
 
 # 初始化和登录WandB
-def init_wandb():
+def init_wandb(name):
     '''初始化WandB并登录，设置项目和配置'''
     wandb.login()
-    run = wandb.init(project="北科大-1000数据集-实验新1-复现效果")
+    run = wandb.init(project=name)
 
 
 def load_experiment_config(config_module_path):
@@ -36,16 +38,15 @@ def load_experiment_config(config_module_path):
     return config_module.experiment_config
 
 
-def load_config_and_device(config_module_path):
-    '''加载配置和设置设备'''
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def load_config_and_device(args):
+    # import pdb; pdb.set_trace()
+
 
     # 动态加载配置文件
-    experiment_config = load_experiment_config(config_module_path)
+    experiment_config = load_experiment_config(args.config_path)
 
     # 创建 opt 实例，这里避免 argparse 解析命令行参数
-    opt = DINetTrainingOptions().parse_args(args=[])
+    opt = DINetTrainingOptions().parse_args()
 
     # 根据动态加载的配置更新 opt
     for key, value in experiment_config.items():
@@ -54,6 +55,9 @@ def load_config_and_device(config_module_path):
 
     # 假设 wandb 已经初始化
     wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
+    '''加载配置和设置设备'''
+    os.environ["CUDA_VISIBLE_DEVICES"] = opt.cuda_devices
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     return opt, device
 
@@ -134,7 +138,7 @@ def train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimi
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay):
         net_g.train()
         for iteration, data in enumerate(training_data_loader):
-            source_image_data, _, reference_clip_data, deepspeech_feature, flag = data
+            source_image_data, reference_clip_data, deepspeech_feature, flag = data
             if not (flag.equal(torch.ones(opt.batch_size, 1, device='cuda'))):
                 print("Skipping batch with dirty data")
                 continue
@@ -223,9 +227,17 @@ def save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI):
 # 主函数
 if __name__ == "__main__":
 
-    init_wandb()
+    #  解析命令行参数导入特定配置文件
+    # Step 1: Parse --config_path first
+    config_parser = argparse.ArgumentParser(description="Train lawdNet frame model", add_help=False)
+    config_parser.add_argument('--config_path', type=str, required=True, help="Path to the experiment configuration file.")
+    config_parser.add_argument('--name', type=str, required=True, help="Name of the experiment.")
+    args, remaining_argv = config_parser.parse_known_args()
 
-    opt, device = load_config_and_device()
+    # After extracting config_path, use it to load configurations
+    # import pdb; pdb.set_trace()
+    init_wandb(args.name)
+    opt, device = load_config_and_device(args)
 
     training_data_loader = load_training_data(opt)
 

@@ -15,7 +15,7 @@ import yaml
 from torch.cuda.amp import autocast as autocast
 from models.Discriminator import Discriminator
 from models.VGG19 import Vgg19
-from models.LawDNet_new import LawDNet
+from models.LawDNet import LawDNet
 from models.Syncnet import SyncNetPerception
 from utils.training_utils import get_scheduler, update_learning_rate, GANLoss
 from config.config import DINetTrainingOptions
@@ -55,20 +55,31 @@ def replace_images(fake_out, source_clip):
     return fake_out_clone
 
 # 初始化和登录WandB
-def init_wandb():
+def init_wandb(name):
     wandb.login()
-    run = wandb.init(project="北科大-mouthsize=288-lowsize-60-kpoints=8-实验新1-复现效果", 
-                     config={
-                                "training_type": "4 clip",
-                                "grid_size": "52 40",
-                            })
+    run = wandb.init(project=name)
 
 # 加载配置和设备设置
-def load_config_and_device():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def load_config_and_device(args):
+    # import pdb; pdb.set_trace()
+    '''加载配置和设置设备'''
+
+    # 动态加载配置文件
+    experiment_config = load_experiment_config(args.config_path)
+
+    # 创建 opt 实例，这里避免 argparse 解析命令行参数
     opt = DINetTrainingOptions().parse_args()
-    wandb.config.update(opt)
+
+    # 根据动态加载的配置更新 opt
+    for key, value in experiment_config.items():
+        if hasattr(opt, key):
+            setattr(opt, key, value)
+
+    # 假设 wandb 已经初始化
+    wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
+    os.environ["CUDA_VISIBLE_DEVICES"] = opt.cuda_devices
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     return opt, device
 
 # Convert Namespace to dictionary
@@ -280,9 +291,18 @@ def save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI
 # 主函数
 if __name__ == "__main__":
 
-    init_wandb()
+    # 解析配置文件路径
+    config_parser = argparse.ArgumentParser(description="Train lawdNet clip model", add_help=False)
+    config_parser.add_argument('--config_path', type=str, required=True, help="Path to the experiment configuration file.")
+    # 本次实验的名称 wandb
+    config_parser.add_argument('--name', type=str, required=True, help="Name of the experiment.")
 
-    opt, device = load_config_and_device()
+    args, remaining_argv = config_parser.parse_known_args()
+
+    # After extracting config_path, use it to load configurations
+    # import pdb; pdb.set_trace()
+    init_wandb(args.name)
+    opt, device = load_config_and_device(args)
 
     training_data_loader = load_training_data(opt)
 

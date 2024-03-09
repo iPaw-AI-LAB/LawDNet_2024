@@ -7,9 +7,9 @@
 
 ## 代码说明
 #### 有用的小工具
-1. 压缩文件并显示进度 `DINet-gitee/DINet-update/asserts/压缩文件.sh` 
-2. 合并不同数据集的landmark字典 `/asserts/training_data/邓-处理大数据集.ipynb`
-3. 提供给yihao的函数 `./Give_Yihao.py`
+1. 压缩文件并显示进度 `./有用的脚本小工具/压缩文件.sh` 
+2. 合并不同数据集的landmark字典 `/有用的脚本小工具/邓-处理大数据集.ipynb`
+3. 音频处理的函数 `./audio_processing.py`
 
 
 
@@ -40,13 +40,19 @@ https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
 ### 代码使用说明
 
 ### 训练 
-和DINet一样
-[codebase仓库DINet](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
+
+采用coarse to fine 的训练策略
+```python
+python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_64.py" --name "name_of_this_experiment" 
+python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_128.py" --name "name_of_this_experiment" 
+python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_256.py" --name "name_of_this_experiment" 
+python train_LawDNet_clip.py --config_path "./config/experiment/config_experiment_clip_256.py" --name "name_of_this_experiment" 
+```
+
+[基于codebase仓库DINet重构](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
 
 #### 测试：
-
-```./Exp-of-Junli/prediction-deng.ipynb```
-
+```./Exp-of-Junli/optimized-prediction-deng.ipynb```
 
 ## 实验记录demo
 [飞书云文档](https://y5ucgsxnni.feishu.cn/docx/QSxadxHp0o6bgLxiiEbc0nvNnZd)

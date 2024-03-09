@@ -50,6 +50,8 @@ class DINetTrainingOptions():
         self.training_data_path = "./asserts/training_data"
 
     def parse_args(self,args=None):
+        self.parser.add_argument('--cuda_devices', type=str, default='0,1,2,3',
+                            help='CUDA devices to use (e.g., "0,1,2,3")')
         self.parser.add_argument('--seed', type=int, default=456, help='random seed to use.')
         self.parser.add_argument('--source_channel', type=int, default=3, help='input source image channels')
         self.parser.add_argument('--ref_channel', type=int, default=15, help='input reference image channels')
@@ -102,9 +104,11 @@ class DINetTrainingOptions():
         self.parser.add_argument('--D_num_blocks', type=int, default=4, help='num of down blocks in discriminator')
         self.parser.add_argument('--D_block_expansion', type=int, default=64, help='block expansion in discriminator')
         self.parser.add_argument('--D_max_features', type=int, default=256, help='max channels in discriminator')
-        if args:
-            return self.parser.parse_args(args)
-        return self.parser.parse_args()
+        if args is not None:
+            parsed_args, unknown = self.parser.parse_known_args(args)
+        else:
+            parsed_args, unknown = self.parser.parse_known_args()
+        return parsed_args
 
 
 class DINetInferenceOptions():
@@ -143,3 +147,4 @@ class DINetInferenceOptions():
         if args:
             return self.parser.parse_args(args)
         return self.parser.parse_args()
+
