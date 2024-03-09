@@ -5,7 +5,29 @@
 链接: https://pan.baidu.com/s/1bNJT409wNlcJgkiAGHcONA?pwd=ipaw 提取码: ipaw 
 
 
-## 代码说明
+# 代码使用说明
+
+## 训练 
+
+采用coarse to fine 的训练策略
+```python
+python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_64.py" --name "name_of_this_experiment" 
+python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_128.py" --name "name_of_this_experiment" 
+python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_256.py" --name "name_of_this_experiment" 
+```
+
+```python
+python train_LawDNet_clip.py --config_path "./config/experiment/config_experiment_clip_256.py" --name "name_of_this_experiment" 
+```
+
+[基于codebase仓库DINet重构](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
+
+## 测试：
+```./Exp-of-Junli/optimized-prediction-deng.ipynb```
+
+## 查看wandb 训练日志
+```https://wandb.ai/ai-zhua``
+
 #### 有用的小工具
 1. 压缩文件并显示进度 `./有用的脚本小工具/压缩文件.sh` 
 2. 合并不同数据集的landmark字典 `/有用的脚本小工具/邓-处理大数据集.ipynb`
@@ -13,7 +35,7 @@
 
 
 
-## 做数据集的代码
+# 做数据集的代码
 [基于syncnet-python修改](https://github.com/iPaw-AI-LAB/syncnet)
 
 功能：将视频转为25fps，并检测得到landmark.csv；若原视频就为25fps，在源文件夹。若原视频不为25fps，存放在目标文件夹
@@ -37,32 +59,19 @@
 [【腾讯文档】DINet常用命令-dengjunli](
 https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
 
-### 代码使用说明
-
-### 训练 
-
-采用coarse to fine 的训练策略
-```python
-python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_64.py" --name "name_of_this_experiment" 
-python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_128.py" --name "name_of_this_experiment" 
-python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_256.py" --name "name_of_this_experiment" 
-python train_LawDNet_clip.py --config_path "./config/experiment/config_experiment_clip_256.py" --name "name_of_this_experiment" 
-```
-
-[基于codebase仓库DINet重构](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
-
-#### 测试：
-```./Exp-of-Junli/optimized-prediction-deng.ipynb```
-
 ## 实验记录demo
 [飞书云文档](https://y5ucgsxnni.feishu.cn/docx/QSxadxHp0o6bgLxiiEbc0nvNnZd)
 
+## 论文地址
+[overleaf 需审批](https://www.overleaf.com/read/vkhhnxrvwbdw#3778eb)
 
 ## 评价指标
 [数据集评测指标代码](https://gitee.com/dengjunli/evaluation_wav2lip)
 
 ## 资源
 [原仓库DINet](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
+
+
 
 
 

@@ -12,7 +12,7 @@ import sys
 sys.path.append("..")
 from torch_affine_ops import standard_grid
 import matplotlib.pyplot as plt
-from tensor_processing_deng import save_feature_map
+# from tensor_processing import save_feature_map
 
 class LocalAffineWarp(nn.Module):
     '''
@@ -28,7 +28,7 @@ class LocalAffineWarp(nn.Module):
     num_kpoints: number of key points, N
     feature_ch: number of channels of input images, C
     '''
-    def __init__(self, para_ch=1024, num_kpoints=5, feature_ch=3, standard_grid_size=(60,60)):
+    def __init__(self, para_ch=256, num_kpoints=5, feature_ch=256, standard_grid_size=(60,60)):
         super(LocalAffineWarp, self).__init__()
         self.para_ch = para_ch
         self.num_kpoints = num_kpoints
@@ -278,11 +278,12 @@ class SameBlock2d(nn.Module):
 
 
 class LawDNet(nn.Module):
-    def __init__(self, source_channel = 5,ref_channel = 15,audio_channel = 29, warp_layer_num =2, num_kpoints=5):
+    def __init__(self, source_channel = 5,ref_channel = 15,audio_channel = 29, warp_layer_num =2, num_kpoints=5, standard_grid_size=60):
         super(LawDNet, self).__init__()
 
         self.warp_layer_num = warp_layer_num
         self.num_kpoints = num_kpoints
+        self.sgs = standard_grid_size
 
         self.source_in_conv = nn.Sequential(
             SameBlock2d(source_channel,64,kernel_size=7, padding=3),
@@ -324,7 +325,7 @@ class LawDNet(nn.Module):
         appearance_conv_list = []
         lawLayer_list = []
         for i in range(self.warp_layer_num):
-            lawLayer_list.append(LocalAffineWarp(para_ch=256, num_kpoints=self.num_kpoints, feature_ch=256))
+            lawLayer_list.append(LocalAffineWarp(para_ch=256, num_kpoints=self.num_kpoints, feature_ch=256, standard_grid_size=(self.sgs, self.sgs)))
             appearance_conv_list.append(
                 nn.Sequential(
                     ResBlock2d(256, 256, 3, 1),

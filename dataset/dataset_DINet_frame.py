@@ -23,9 +23,6 @@ def get_data(json_name, augment_num):
         data_dic = json.load(f)
     data_dic_name_list = []
     for augment_index in tqdm(range(augment_num)):  # Wrapped with tqdm for progress tracking
-        if augment_index == 100:
-            print('仅供测试，只加载100个数据')
-            break
         for video_name in data_dic.keys():
             data_dic_name_list.append(video_name)
     random.shuffle(data_dic_name_list)

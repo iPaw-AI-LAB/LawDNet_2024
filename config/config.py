@@ -104,6 +104,15 @@ class DINetTrainingOptions():
         self.parser.add_argument('--D_num_blocks', type=int, default=4, help='num of down blocks in discriminator')
         self.parser.add_argument('--D_block_expansion', type=int, default=64, help='block expansion in discriminator')
         self.parser.add_argument('--D_max_features', type=int, default=256, help='max channels in discriminator')
+        
+        ## ######################## LawDNet ########################
+        # 关键点数量
+        self.parser.add_argument('--num_kpoints', type=int, default=5, help='num_keypoints of local affine warping') 
+        # coarse grid size
+        self.parser.add_argument('--coarse_grid_size', type=int, default=60, help='coarse grid size of local affine warping')
+        # warping layers num
+        self.parser.add_argument('--warp_layer_num', type=int, default=2, help='warping layers num of local affine warping')
+        
         if args is not None:
             parsed_args, unknown = self.parser.parse_known_args(args)
         else:
@@ -116,6 +125,7 @@ class DINetInferenceOptions():
         self.parser = argparse.ArgumentParser()
 
     def parse_args(self,args=None):
+        self.parser.add_argument('--cuda_devices', type=str, default='3', help='CUDA devices to use (e.g., "3")')
         self.parser.add_argument('--source_channel', type=int, default=3, help='channels of source image')
         self.parser.add_argument('--ref_channel', type=int, default=15, help='channels of reference image')
         self.parser.add_argument('--audio_channel', type=int, default=29, help='channels of audio feature')
@@ -144,6 +154,14 @@ class DINetInferenceOptions():
                                  default='./asserts/inference_result',
                                  type=str,
                                  help='path of generated videos')
+        ## ######################## LawDNet ########################
+        # 关键点数量
+        self.parser.add_argument('--num_kpoints', type=int, default=5, help='num_keypoints of local affine warping') 
+        # coarse grid size
+        self.parser.add_argument('--coarse_grid_size', type=int, default=60, help='coarse grid size of local affine warping')
+        # warping layers num
+        self.parser.add_argument('--warp_layer_num', type=int, default=2, help='warping layers num of local affine warping')
+        
         if args:
             return self.parser.parse_args(args)
         return self.parser.parse_args()

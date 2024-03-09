@@ -99,7 +99,8 @@ def load_training_data(opt):
 
 # 初始化网络
 def init_networks(opt):
-    net_g = LawDNet(opt.source_channel, opt.ref_channel, opt.audio_channel).cuda()
+    net_g = LawDNet(opt.source_channel, opt.ref_channel, opt.audio_channel, 
+                    opt.warp_layer_num, opt.num_kpoints, opt.coarse_grid_size).cuda()
     net_dI = Discriminator(opt.source_channel, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).cuda()
     net_dV = Discriminator(opt.source_channel * 5, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).cuda()
     net_vgg = Vgg19().cuda()
