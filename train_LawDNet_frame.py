@@ -9,6 +9,7 @@ import torch.optim as optim
 from torch.cuda.amp import autocast as autocast
 import wandb
 import argparse
+import time
 
 from models.Discriminator import Discriminator
 from models.VGG19 import Vgg19
@@ -91,6 +92,38 @@ def setup_optimizers(net_g, net_dI):
     optimizer_dI = optim.AdamW(net_dI.parameters(), lr=opt.lr_dI)
     return optimizer_g, optimizer_dI
 
+
+def load_coarse2fine_checkpoint(net_g, opt):
+    """
+    Loads a coarse2fine training checkpoint into the model if the coarse2fine option is set to True.
+
+    Parameters:
+    - net_g: the model into which the weights will be loaded.
+    - opt: options object that must have `coarse2fine` flag and a `coarse_model_path`.
+
+    Returns:
+    - A boolean value indicating whether the checkpoint was loaded successfully.
+    """
+
+    if opt.coarse2fine and opt.coarse_model_path:
+        try:
+            print(f'Loading checkpoint for coarse2fine training from: {opt.coarse_model_path}')
+            checkpoint = torch.load(opt.coarse_model_path)
+            net_g.load_state_dict(checkpoint['state_dict']['net_g'])
+            print('Checkpoint loaded successfully for coarse2fine training!')
+            return True
+        except Exception as e:
+            print(f'Failed to load the checkpoint for coarse2fine training: {e}')
+            return False
+    else:
+        # Prints a message if the coarse2fine flag is not set or path is empty.
+        if not opt.coarse2fine:
+            print("Coarse2fine training flag is not set.")
+        if not opt.coarse_model_path:
+            print("Path to the coarse model checkpoint is empty.")
+        return False
+
+
 # 设置损失函数
 def setup_criterion():
     '''设置损失函数'''
@@ -136,6 +169,10 @@ def log_to_wandb(source_image_data, fake_out):
 
 def train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimizer_dI, criterionGAN, criterionL1, criterionL2, net_g_scheduler, net_dI_scheduler):
     smooth_sqmask = SmoothSqMask().cuda()
+    config_dict = vars(opt)
+    config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
+    save_config_to_yaml(config_dict, config_out_path)
+
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay):
         net_g.train()
         for iteration, data in enumerate(training_data_loader):
@@ -207,8 +244,7 @@ def train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimi
             save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI)
 
 def save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI):
-    if not os.path.exists(opt.result_path):
-        os.makedirs(opt.result_path, exist_ok=True)
+
     model_out_path = os.path.join(opt.result_path, f'netG_model_epoch_{epoch}.pth')
     states = {
         'epoch': epoch + 1,
@@ -238,13 +274,18 @@ if __name__ == "__main__":
     # After extracting config_path, use it to load configurations
     # import pdb; pdb.set_trace()
     init_wandb(args.name)
+
     opt, device = load_config_and_device(args)
+
+    os.makedirs(opt.result_path, exist_ok=True)
 
     training_data_loader = load_training_data(opt)
 
     net_g, net_dI, net_vgg = init_networks(opt)
 
     optimizer_g, optimizer_dI = setup_optimizers(net_g, net_dI)
+
+    load_coarse2fine_checkpoint(net_g, opt)
 
     criterionGAN, criterionL1, criterionL2 = setup_criterion()
 

@@ -102,7 +102,7 @@ class DINetDataset(Dataset):
             print("视频片段数量小于6，则认为是脏数据，返回零样本 video_path:",video_name)
             return self.zero_sample_with_batch()
 
-        source_clip_list, source_clip_mask_list, reference_clip_list, deep_speech_list, reference_for_dV = [], [], [], [], []
+        source_clip_list, reference_clip_list, deep_speech_list, reference_for_dV = [], [], [], []
 
         # 随机选择一个源视频片段作为锚点
         source_anchor = random.randint(0, video_clip_num - 1)

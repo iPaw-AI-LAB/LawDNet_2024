@@ -82,10 +82,6 @@ def load_config_and_device(args):
 
     return opt, device
 
-# Convert Namespace to dictionary
-def namespace_to_dict(namespace):
-    return vars(namespace)
-
 # Save configuration to a YAML file
 def save_config_to_yaml(config, filename):
     with open(filename, 'w') as file:
@@ -123,6 +119,32 @@ def setup_optimizers(net_g, net_dI, net_dV):
     optimizer_dV = optim.AdamW(net_dV.parameters(), lr=opt.lr_dI)
     return optimizer_g, optimizer_dI, optimizer_dV
 
+def load_pretrained_weights(net_g, opt):
+    """
+    Loads the pretrained weights into the model if a valid path is provided.
+
+    Parameters:
+    - net_g: the model into which the weights will be loaded.
+    - opt: options object that contains the path to the pretrained weights.
+
+    Returns:
+    - A boolean value indicating whether the weights were loaded successfully.
+    """
+
+    if opt.pretrained_frame_DINet_path:
+        try:
+            print(f'Loading frame trained DINet weight from: {opt.pretrained_frame_DINet_path}')
+            checkpoint = torch.load(opt.pretrained_frame_DINet_path)
+            net_g.load_state_dict(checkpoint['state_dict']['net_g'])
+            print('Loading frame trained DINet weight finished!')
+            return True
+        except Exception as e:
+            print(f'Error loading pretrained weights: {e}')
+            return False
+    else:
+        print("Path to pretrained frame trained DINet weight is empty.")
+        return False
+
 # 设置损失函数
 def setup_criterion():
     criterionGAN = GANLoss().cuda()
@@ -152,7 +174,7 @@ def log_to_wandb(source_clip, fake_out):
 # 训练过程
 def train(opt, net_g, net_dI, net_dV, training_data_loader, optimizer_g, optimizer_dI, optimizer_dV, criterionGAN, criterionL1, criterionMSE, criterionCosine, net_g_scheduler, net_dI_scheduler, net_dV_scheduler):
     # 保存opt参数设置到本地供检查,加时间戳
-    config_dict = namespace_to_dict(opt)
+    config_dict = vars(opt)
     config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
     save_config_to_yaml(config_dict, config_out_path)
     
@@ -305,11 +327,15 @@ if __name__ == "__main__":
     init_wandb(args.name)
     opt, device = load_config_and_device(args)
 
+    os.makedirs(opt.result_path, exist_ok=True)
+
     training_data_loader = load_training_data(opt)
 
     net_g, net_dI, net_dV, net_vgg, net_lipsync = init_networks(opt)
 
     optimizer_g, optimizer_dI, optimizer_dV = setup_optimizers(net_g, net_dI, net_dV)
+
+    load_pretrained_weights(net_g, opt)
 
     criterionGAN, criterionL1, criterionMSE, criterionCosine = setup_criterion()
 
