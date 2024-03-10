@@ -86,11 +86,15 @@ def load_config_and_device(args):
 
     # 假设 wandb 已经初始化
     wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
-    os.environ["CUDA_VISIBLE_DEVICES"] = opt.cuda_devices
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # 根据实验名称直接修改文件夹名字
-    opt.result_path = opt.result_path + '_' + args.name
+    # 分割result_path，最多分割成两部分
+    path_parts = opt.result_path.rsplit('/', 1)
+
+    # 在倒数第一个/之前插入本次实验的名字
+    opt.result_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}'
 
     return opt, device
 
@@ -114,7 +118,7 @@ def init_networks(opt):
     net_vgg = Vgg19().cuda()
     net_lipsync = SyncNetPerception(opt.pretrained_syncnet_path).cuda()
 
-    device_ids = [0, 1, 2, 3]
+    device_ids = [int(x) for x in opt.cuda_devices.split(',')]
     net_g = nn.DataParallel(net_g, device_ids=device_ids).to(device)
     net_dI = nn.DataParallel(net_dI, device_ids=device_ids).to(device)
     net_dV = nn.DataParallel(net_dV, device_ids=device_ids).to(device)
@@ -333,7 +337,7 @@ def train(
 
         if epoch % opt.checkpoint == 0:
             save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI, optimizer_dV)
-        if epoch % opt.checkpoint == 1:
+        if epoch == 1:
             config_dict = vars(opt)
             config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
             save_config_to_yaml(config_dict, config_out_path)

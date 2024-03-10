@@ -50,7 +50,7 @@ class DINetTrainingOptions():
         self.training_data_path = "./asserts/training_data"
 
     def parse_args(self,args=None):
-        self.parser.add_argument('--cuda_devices', type=str, default='0,1,2,3',
+        self.parser.add_argument('--cuda_devices', type=str, default='0,1',
                             help='CUDA devices to use (e.g., "0,1,2,3")')
         self.parser.add_argument('--seed', type=int, default=456, help='random seed to use.')
         self.parser.add_argument('--source_channel', type=int, default=3, help='input source image channels')
