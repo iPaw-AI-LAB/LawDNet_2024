@@ -8,7 +8,7 @@ current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 class DataProcessingOptions():
     def __init__(self):
         self.parser = argparse.ArgumentParser()
-        self.training_data_path = "./asserts/training_data_金鹏高清棚拍数据集汇总"
+        self.training_data_path = "./asserts/training_data"
 
     def parse_args(self):
         self.parser.add_argument('--extract_video_frame', action='store_true', help='extract video frame')

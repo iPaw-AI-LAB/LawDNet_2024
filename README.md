@@ -43,6 +43,76 @@ python train_LawDNet_clip.py --config_path "./config/experiment/config_experimen
 2. `test_syncnet_dengjunli.ipynb`用于移动数据集
 
 ## 做数据集步骤
+主要代码```data_processing_正脸化.py```
+
+## 使用方法
+
+本脚本支持多种命令行参数，以控制其操作。以下是可用选项及其描述：
+
+```bash
+python data_processing_正脸化.py [OPTIONS]
+```
+
+### 可用选项
+
+- `--extract_video_frame`：启用从源视频中提取视频帧。
+- `--extract_audio`：启用从源视频中提取音频。
+- `--extract_deep_speech`：启用从音频文件中提取DeepSpeech特征。
+- `--crop_face`：启用根据OpenFace地标裁剪人脸。
+- `--generate_training_json`：启用生成训练JSON文件。
+- `--extract_video_frame_multithreading`：启用多线程提取视频帧，以提高效率。
+- `--crop_face_multithreading`：启用多线程裁剪人脸，以提高效率。
+
+### 步骤指南
+
+1. **提取视频帧：**
+   从指定目录中的视频文件提取帧。
+   ```bash
+   python data_processing_正脸化.py --extract_video_frame
+   ```
+   
+2. **提取音频：**
+   将视频文件中的音轨提取为WAV格式。
+   ```bash
+   python data_processing_正脸化.py --extract_audio
+   ```
+
+3. **提取DeepSpeech特征：**
+   处理提取的音频文件，计算并保存DeepSpeech特征。
+   ```bash
+   python data_processing_正脸化.py --extract_deep_speech
+   ```
+
+4. **根据landmark裁剪人脸：**
+   使用landmark从视频帧中裁剪人脸。
+   ```bash
+   python data_processing_正脸化.py --crop_face
+   ```
+
+5. **生成训练JSON文件：**
+   生成一个JSON文件，列出视频帧、音频特征及元数据路径，用于训练。
+   ```bash
+   python data_processing_正脸化.py --generate_training_json
+   ```
+
+6. **多线程提取视频帧（可选）：**
+   使用多线程更高效地提取视频帧。
+   ```bash
+   python data_processing_正脸化.py --extract_video_frame_multithreading
+   ```
+
+7. **多线程裁剪人脸（可选）：**
+   使用多线程更高效地从视频帧中裁剪人脸。
+   ```bash
+   python data_processing_正脸化.py --crop_face_multithreading
+   ```
+
+## 注意事项
+
+- 在运行脚本之前，请确保所有所需的输入目录存在且包含必要的文件。
+
+#### 数据处理脚本
+
 1. 用做数据集的代码处理视频
 2. 将视频移动到本实验的 `./assert/training_data/split_video_25fps`
 3. 将视频对应的csv移动到本实验代码的`./assert/training_data/split_video_25fps_landmark_openface`
@@ -71,6 +141,11 @@ https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
 
 ### 资源
 [原仓库DINet](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
+
+
+### bug
+1. 处理数据集的时候，金鹏数据集的crop face的长度和deepspeech长度不一致
+2. 音频的deepspeech帧数总比视频帧多3帧
 
 
 

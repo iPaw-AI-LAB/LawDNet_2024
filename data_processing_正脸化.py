@@ -9,6 +9,7 @@ import numpy as np
 import json
 import shutil
 import torch
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing.pool import ThreadPool
 
@@ -152,6 +153,8 @@ def crop_face_according_openfaceLM(openface_landmark_dir,video_frame_dir,res_cro
 
 
 def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_path):
+    logging.basicConfig(filename='data_processing_errors.log', level=logging.ERROR, format='%(asctime)s:%(levelname)s:%(message)s')
+
     video_name_list = os.listdir(crop_face_dir)
     video_name_list.sort()
     res_data_dic = {}
@@ -180,7 +183,9 @@ def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_pa
             
         deep_speech_feature = np.loadtxt(deep_speech_feature_path)
         video_clip_dir = os.path.join(crop_face_dir, video_name)
-        clip_name_list = os.listdir(video_clip_dir)
+        # 使用列表推导式和os.path.isdir来过滤非目录条目
+        clip_name_list = [item for item in os.listdir(video_clip_dir) if os.path.isdir(os.path.join(video_clip_dir, item))]
+
         clip_name_list.sort()
         video_clip_num = len(clip_name_list)
         clip_data_list = []
@@ -189,15 +194,22 @@ def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_pa
             clip_frame_dir = os.path.join(video_clip_dir, clip_name)
             frame_path_list = glob.glob(os.path.join(clip_frame_dir, '*.jpg'))
             frame_path_list.sort()
-            assert len(frame_path_list) == clip_length
+
+            if len(frame_path_list) != clip_length:
+                logging.error(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_path_list)}) does not match clip length ({clip_length}).')
+                print(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_path_list)}) does not match clip length ({clip_length}).')
+                # 删除len(frame_path_list)为0的文件夹
+                if len(frame_path_list) == 0 and os.path.isdir(frame_path_list):
+                    shutil.rmtree(clip_frame_dir)
+                continue
+
             start_index = int(float(clip_name) * clip_length)
             assert int(float(os.path.basename(frame_path_list[0]).replace('.jpg', ''))) == start_index
             frame_name_list = [video_name + '/' + clip_name + '/' + os.path.basename(item) for item in frame_path_list]
             deep_speech_list = deep_speech_feature[start_index:start_index + clip_length, :].tolist()
             if len(frame_name_list) != len(deep_speech_list):
-                print(' skip video: {}:{}/{}  clip:{}:{}/{} because of different length: {} {}'.format(
-                    video_name,video_index,len(video_name_list),clip_name,clip_index,len(clip_name_list),
-                     len(frame_name_list),len(deep_speech_list)))
+                logging.error(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_name_list)}) does not match deep speech length ({len(deep_speech_list)}).')
+                print(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_name_list)}) does not match deep speech length ({len(deep_speech_list)}).')
             tem_tem_dic['frame_name_list'] = frame_name_list
             tem_tem_dic['frame_path_list'] = frame_path_list
             tem_tem_dic['deep_speech_list'] = deep_speech_list
@@ -208,7 +220,9 @@ def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_pa
     if os.path.exists(res_json_path):
         os.remove(res_json_path)
     with open(res_json_path,'w') as f:
+        print('saving json file: {}'.format(res_json_path))
         json.dump(res_data_dic,f)
+        print('finish saving json file: {}'.format(res_json_path)
 
 
 def extract_video_frame_multithreading(source_video_dir, res_video_frame_dir):
