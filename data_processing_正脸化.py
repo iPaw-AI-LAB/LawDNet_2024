@@ -222,14 +222,13 @@ def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_pa
     with open(res_json_path,'w') as f:
         print('saving json file: {}'.format(res_json_path))
         json.dump(res_data_dic,f)
-        print('finish saving json file: {}'.format(res_json_path)
+        print('finish saving json file: {}'.format(res_json_path))
 
 
 def extract_video_frame_multithreading(source_video_dir, res_video_frame_dir):
     '''
         extract video frames from videos 倒序处理并跳过已处理的视频，用来加速拆帧的过程
     '''
-
     def process_video(video_path):
         video_name = os.path.basename(video_path)
         frame_dir = os.path.join(res_video_frame_dir, video_name.replace('.mp4', ''))

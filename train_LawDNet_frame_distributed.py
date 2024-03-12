@@ -11,7 +11,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import wandb
 import argparse
-import time
+# import time
 import yaml
 from tqdm import tqdm
 
@@ -152,7 +152,15 @@ def setup_schedulers(optimizer_g, optimizer_dI, opt):
 def load_training_data(opt, world_size, rank):
     train_data = DINetDataset(opt.train_data, opt.augment_num, opt.mouth_region_size)
     train_sampler = DistributedSampler(train_data, num_replicas=world_size, rank=rank, shuffle=True)
-    training_data_loader = DataLoader(dataset=train_data, batch_size=opt.batch_size, shuffle=False, sampler=train_sampler, drop_last=True)
+    training_data_loader = DataLoader(
+        dataset=train_data,
+        batch_size=opt.batch_size,
+        shuffle=False,
+        sampler=train_sampler,
+        num_workers=opt.num_workers,
+        pin_memory=opt.pin_memory,
+        drop_last=True
+    )
     return training_data_loader, train_sampler
 
 def log_to_wandb(source_image_data, fake_out):
@@ -186,6 +194,7 @@ def log_to_wandb(source_image_data, fake_out):
 # 训练函数中的主要修改
 def train(
     opt, 
+    args,
     net_g, 
     net_dI, 
     net_vgg, 
@@ -288,7 +297,7 @@ def train(
                 save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI)
             if epoch == 1:
                 config_dict = vars(opt)
-                config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
+                config_out_path = os.path.join(opt.result_path, f'config_{args.name}.yaml')
                 save_config_to_yaml(config_dict, config_out_path)
 
 def save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI):
@@ -324,9 +333,12 @@ if __name__ == "__main__":
 
     args, remaining_argv = config_parser.parse_known_args()
 
-    rank = torch.distributed.get_rank()
-    world_size = torch.distributed.get_world_size()
+    # import pdb; pdb.set_trace()
+    rank = int(os.environ["LOCAL_RANK"])
+    world_size = int(os.environ["WORLD_SIZE"])
+    print(f"Rank: {rank}, World Size: {world_size}")
     setup(rank, world_size, master_addr=args.master_addr, master_port=args.master_port)
+    print(f"Rank {rank} initialized.")
 
     init_wandb(args.name, rank)
 
@@ -346,6 +358,6 @@ if __name__ == "__main__":
 
     net_g_scheduler, net_dI_scheduler = setup_schedulers(optimizer_g, optimizer_dI, opt)
 
-    train(opt, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimizer_dI, criterionGAN, criterionL1, criterionL2, net_g_scheduler, net_dI_scheduler)
+    train(opt, args, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimizer_dI, criterionGAN, criterionL1, criterionL2, net_g_scheduler, net_dI_scheduler)
 
     wandb.finish()

@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # 定义实验名称
-EXPERIMENT_NAME="test_2024"
+EXPERIMENT_NAME="test_2024—多卡"
 
-# 设置使用的GPU编号，此处假设使用GPU 1和2
-export CUDA_VISIBLE_DEVICES=3,4
+# 设置使用的GPU编号
+export CUDA_VISIBLE_DEVICES=2,3
 
 # 定义主节点地址和端口
 MASTER_ADDR="localhost"
-MASTER_PORT="12355"
+MASTER_PORT="47877"
 
 # 执行训练任务
 # 注意：根据您的需求调整 MASTER_ADDR 和 MASTER_PORT 的值

@@ -102,7 +102,15 @@ def save_config_to_yaml(config, filename):
 def load_training_data(opt, world_size, rank):
     train_data = DINetDataset(opt.train_data, opt.augment_num, opt.mouth_region_size)
     train_sampler = DistributedSampler(train_data, num_replicas=world_size, rank=rank, shuffle=True)
-    training_data_loader = DataLoader(dataset=train_data, batch_size=opt.batch_size, shuffle=False, sampler=train_sampler, drop_last=True)
+    training_data_loader = DataLoader(
+        dataset=train_data,
+        batch_size=opt.batch_size,
+        shuffle=False,
+        sampler=train_sampler,
+        num_workers=opt.num_workers,
+        pin_memory=opt.pin_memory,
+        drop_last=True
+    )
     return training_data_loader, train_sampler
 
 
@@ -371,9 +379,6 @@ def cleanup():
     dist.destroy_process_group()
 
 if __name__ == "__main__":
-
-
-    # 模型训练和其他代码...
     # 解析配置文件路径
     config_parser = argparse.ArgumentParser(description="Train lawdNet clip model", add_help=False)
     config_parser.add_argument('--config_path', type=str, required=True, help="Path to the experiment configuration file.")
@@ -385,9 +390,9 @@ if __name__ == "__main__":
     # 添加主节点端口参数
     config_parser.add_argument('--master_port', type=str, default='12355', help="Port of the master node for distributed training.")
     
-    rank = torch.distributed.get_rank()
-    world_size = torch.distributed.get_world_size()
-    setup(rank, world_size)
+    rank = int(os.environ["LOCAL_RANK"])
+    world_size = int(os.environ["WORLD_SIZE"])
+    setup(rank, world_size, master_addr=args.master_addr, master_port=args.master_port)
 
     args, remaining_argv = config_parser.parse_known_args()
 
