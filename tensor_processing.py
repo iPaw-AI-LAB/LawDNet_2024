@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from torch_affine_ops import *
 
 class Gaussian_bluring(nn.Module):
-  def __init__(self, radius=1,sigma=1,padding=0):
+  def __init__(self, radius=1,sigma=1,padding=0,device='cuda'):
     super(Gaussian_bluring, self).__init__()
 
     self.sigma = sigma
@@ -23,7 +23,7 @@ class Gaussian_bluring(nn.Module):
 
     self.kernel = self.get_gaussian_kernel()
 
-    self.weight = nn.Parameter(data=self.kernel.unsqueeze(0).unsqueeze(0), requires_grad=False).cuda()
+    self.weight = nn.Parameter(data=self.kernel.unsqueeze(0).unsqueeze(0), requires_grad=False).to(device)
  
   def forward(self, x):
     """
@@ -272,9 +272,9 @@ class FaceAlign(nn.Module):
 
 
 class SmoothSqMask(nn.Module):
-  def __init__(self, radius=2,sigma=1,padding=0,standard_shape=(103,80)):
+  def __init__(self, radius=2,sigma=1,padding=0,standard_shape=(103,80),device='cuda'):
     super(SmoothSqMask, self).__init__()
-    self.gaussian_bluringer = Gaussian_bluring(radius=radius,sigma=sigma,padding=padding)
+    self.gaussian_bluringer = Gaussian_bluring(radius=radius,sigma=sigma,padding=padding,device=device)
     # self.bias = bias
     # self.scaling = scaling
     self.standard_shape = standard_shape

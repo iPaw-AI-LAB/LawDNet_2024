@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.cuda.amp import autocast as autocast
+import torch.distributed as dist
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import wandb
@@ -24,22 +25,22 @@ from dataset.dataset_DINet_frame import DINetDataset
 from sync_batchnorm import convert_model
 from config.config import DINetTrainingOptions
 from tensor_processing import SmoothSqMask
-from models.Gaussian_blur import Gaussian_bluring
+# from models.Gaussian_blur import Gaussian_bluring
 
-def setup(rank, world_size, master_addr='localhost', master_port='12355'):
-    """
-    Initialize the distributed environment.
+# def setup(rank, world_size, master_addr='localhost', master_port='12355'):
+#     """
+#     Initialize the distributed environment.
 
-    Parameters:
-    - rank: The rank of the current process in the distributed setup.
-    - world_size: The total number of processes in the distributed setup.
-    - master_addr: The address of the master node. Default is 'localhost'.
-    - master_port: The port on which to listen or connect to the master node. Default is '12355'.
-    """
-    os.environ['MASTER_ADDR'] = master_addr
-    os.environ['MASTER_PORT'] = master_port
-    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
-    torch.cuda.set_device(rank)
+#     Parameters:
+#     - rank: The rank of the current process in the distributed setup.
+#     - world_size: The total number of processes in the distributed setup.
+#     - master_addr: The address of the master node. Default is 'localhost'.
+#     - master_port: The port on which to listen or connect to the master node. Default is '12355'.
+#     """
+#     os.environ['MASTER_ADDR'] = master_addr
+#     os.environ['MASTER_PORT'] = master_port
+#     torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
+#     torch.cuda.set_device(rank)
 
 def init_wandb(name, rank):
     if rank == 0:
@@ -72,7 +73,8 @@ def load_config_and_device(args):
             setattr(opt, key, value)
 
     # 假设 wandb 已经初始化
-    wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
+    if rank == 0:
+        wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
     '''加载配置和设置设备'''
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -91,8 +93,9 @@ def init_networks(opt, rank):
     net_dI = Discriminator(opt.source_channel, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).to(rank)
     net_vgg = Vgg19().to(rank)
 
-    net_g = DDP(net_g, device_ids=[rank])
-    net_dI = DDP(net_dI, device_ids=[rank])
+    net_g = DDP(net_g, device_ids=[rank], find_unused_parameters=True)
+    net_dI = DDP(net_dI, device_ids=[rank], find_unused_parameters=True)
+    print("DDP initialized, rank: ", rank)
     # net_vgg 用于特征提取，一般情况下不需要DDP封装
 
     return net_g, net_dI, net_vgg
@@ -136,9 +139,9 @@ def load_coarse2fine_checkpoint(net_g, opt):
 # 设置损失函数
 def setup_criterion():
     '''设置损失函数'''
-    criterionGAN = GANLoss().cuda()
-    criterionL1 = nn.L1Loss().cuda()
-    criterionL2 = nn.MSELoss().cuda()
+    criterionGAN = GANLoss()
+    criterionL1 = nn.L1Loss()
+    criterionL2 = nn.MSELoss()
     return criterionGAN, criterionL1, criterionL2
 
 # 设置学习率调度器
@@ -200,6 +203,7 @@ def train(
     net_vgg, 
     training_data_loader, 
     train_sampler,
+    rank,
     optimizer_g, 
     optimizer_dI, 
     criterionGAN, 
@@ -209,7 +213,12 @@ def train(
     net_dI_scheduler
 ):
     
-    smooth_sqmask = SmoothSqMask().cuda()
+    device_id = rank % torch.cuda.device_count()
+    criterionGAN = criterionGAN.to(device_id)
+    criterionL1 = criterionL1.to(device_id)
+    criterionL2 = criterionL2.to(device_id)
+
+    smooth_sqmask = SmoothSqMask(device=device_id).to(device_id)
 
     # 混合精度训练：Creates a GradScaler once at the beginning of training.
     scaler = torch.cuda.amp.GradScaler(enabled=True)
@@ -220,13 +229,14 @@ def train(
         train_sampler.set_epoch(epoch)
         net_g.train()
         for iteration, (source_image_data, reference_clip_data, deepspeech_feature, flag) in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
-            if not (flag.equal(torch.ones(opt.batch_size, 1, device='cuda'))):
+            flag = flag.to(device_id)
+            if not (flag.equal(torch.ones(opt.batch_size, 1, device=device_id))):
                 print("Skipping batch with dirty data")
                 continue
 
-            source_image_data = source_image_data.float().cuda()
-            reference_clip_data = reference_clip_data.float().cuda()
-            deepspeech_feature = deepspeech_feature.float().cuda()
+            source_image_data = source_image_data.float().to(device_id)
+            reference_clip_data = reference_clip_data.float().to(device_id)
+            deepspeech_feature = deepspeech_feature.float().to(device_id)
 
             # Apply soft square mask
             source_image_mask = smooth_sqmask(source_image_data)
@@ -272,19 +282,20 @@ def train(
             # 混合精度训练
             scaler.update()
 
-            if iteration % opt.freq_wandb == 0:
-                log_to_wandb(source_image_data, fake_out)
-                wandb.log({
-                    "epoch": epoch,
-                    "loss_dI": loss_dI.item(),
-                    "loss_g": loss_g.item(),
-                    "loss_img": loss_img.item(),
-                    "loss_g_perception": loss_g_perception.item(),
-                    "loss_g_dI": loss_g_dI.item()
-                })
-                print(f"\nEpoch {epoch}, iteration {iteration}, loss_dI: {loss_dI.item()}, loss_g: {loss_g.item()}, "
-                    f"loss_img: {loss_img.item()}, loss_g_perception: {loss_g_perception.item()}, "
-                    f"loss_g_dI: {loss_g_dI.item()}")
+            if rank == 0:
+                if iteration % opt.freq_wandb == 0:
+                    log_to_wandb(source_image_data, fake_out)
+                    wandb.log({
+                        "epoch": epoch,
+                        "loss_dI": loss_dI.item(),
+                        "loss_g": loss_g.item(),
+                        "loss_img": loss_img.item(),
+                        "loss_g_perception": loss_g_perception.item(),
+                        "loss_g_dI": loss_g_dI.item()
+                    })
+                    print(f"\nEpoch {epoch}, iteration {iteration}, loss_dI: {loss_dI.item()}, loss_g: {loss_g.item()}, "
+                        f"loss_img: {loss_img.item()}, loss_g_perception: {loss_g_perception.item()}, "
+                        f"loss_g_dI: {loss_g_dI.item()}")
 
         # Update learning rates
         update_learning_rate(net_g_scheduler, optimizer_g)
@@ -299,6 +310,7 @@ def train(
                 config_dict = vars(opt)
                 config_out_path = os.path.join(opt.result_path, f'config_{args.name}.yaml')
                 save_config_to_yaml(config_dict, config_out_path)
+
 
 def save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI):
 
@@ -317,6 +329,9 @@ def save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI):
     torch.save(states, model_out_path)
     print(f"Checkpoint saved to {model_out_path}")
 
+def cleanup():
+    dist.destroy_process_group()
+
 
 
 if __name__ == "__main__":
@@ -334,11 +349,15 @@ if __name__ == "__main__":
     args, remaining_argv = config_parser.parse_known_args()
 
     # import pdb; pdb.set_trace()
-    rank = int(os.environ["LOCAL_RANK"])
-    world_size = int(os.environ["WORLD_SIZE"])
-    print(f"Rank: {rank}, World Size: {world_size}")
-    setup(rank, world_size, master_addr=args.master_addr, master_port=args.master_port)
-    print(f"Rank {rank} initialized.")
+    # rank = int(os.environ["LOCAL_RANK"])
+    # world_size = int(os.environ["WORLD_SIZE"])
+    # print(f"Rank: {rank}, World Size: {world_size}")
+    # print(f"Master Addr: {args.master_addr}, Master Port: {args.master_port}")
+    # setup(rank, world_size, master_addr=args.master_addr, master_port=args.master_port)
+    # print(f"Rank {rank} initialized.")
+    dist.init_process_group("nccl")
+    rank = dist.get_rank()
+    world_size = dist.get_world_size()
 
     init_wandb(args.name, rank)
 
@@ -346,7 +365,7 @@ if __name__ == "__main__":
 
     os.makedirs(opt.result_path, exist_ok=True)
 
-    training_data_loader = load_training_data(opt)
+    training_data_loader, train_sampler = load_training_data(opt, world_size, rank)
 
     net_g, net_dI, net_vgg = init_networks(opt, rank)
 
@@ -358,6 +377,23 @@ if __name__ == "__main__":
 
     net_g_scheduler, net_dI_scheduler = setup_schedulers(optimizer_g, optimizer_dI, opt)
 
-    train(opt, args, net_g, net_dI, net_vgg, training_data_loader, optimizer_g, optimizer_dI, criterionGAN, criterionL1, criterionL2, net_g_scheduler, net_dI_scheduler)
-
+    train(
+        opt, 
+        args,
+        net_g, 
+        net_dI, 
+        net_vgg, 
+        training_data_loader, 
+        train_sampler,
+        rank,
+        optimizer_g, 
+        optimizer_dI, 
+        criterionGAN, 
+        criterionL1, 
+        criterionL2, 
+        net_g_scheduler, 
+        net_dI_scheduler
+    )
     wandb.finish()
+
+    cleanup()

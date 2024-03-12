@@ -206,9 +206,11 @@ class SyncNetPerception(nn.Module):
         self.model = SyncNet(15,29,128)
         print('load lip sync model : {}'.format(pretrain_path))
         self.model.load_state_dict(torch.load(pretrain_path)['state_dict']['net'])
+        print('load lip sync model success')
         for param in self.model.parameters():
             param.requires_grad = False
         self.model.eval()
+        print('syncnet model is set to eval')
 
     def forward(self, image,audio):
         with autocast():

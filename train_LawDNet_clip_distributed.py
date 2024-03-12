@@ -33,20 +33,20 @@ from models.content_model import AudioContentModel, LipContentModel
 from torch.nn.utils import clip_grad_norm_
 
 
-def setup(rank, world_size, master_addr='localhost', master_port='12355'):
-    """
-    Initialize the distributed environment.
+# def setup(rank, world_size, master_addr='localhost', master_port='12355'):
+#     """
+#     Initialize the distributed environment.
 
-    Parameters:
-    - rank: The rank of the current process in the distributed setup.
-    - world_size: The total number of processes in the distributed setup.
-    - master_addr: The address of the master node. Default is 'localhost'.
-    - master_port: The port on which to listen or connect to the master node. Default is '12355'.
-    """
-    os.environ['MASTER_ADDR'] = master_addr
-    os.environ['MASTER_PORT'] = master_port
-    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
-    torch.cuda.set_device(rank)
+#     Parameters:
+#     - rank: The rank of the current process in the distributed setup.
+#     - world_size: The total number of processes in the distributed setup.
+#     - master_addr: The address of the master node. Default is 'localhost'.
+#     - master_port: The port on which to listen or connect to the master node. Default is '12355'.
+#     """
+#     os.environ['MASTER_ADDR'] = master_addr
+#     os.environ['MASTER_PORT'] = master_port
+#     torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
+#     torch.cuda.set_device(rank)
 
 # 初始化和登录WandB
 def init_wandb(name,rank):
@@ -80,7 +80,8 @@ def load_config_and_device(args):
             setattr(opt, key, value)
 
     # 假设 wandb 已经初始化
-    wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
+    if rank == 0:
+        wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -119,19 +120,21 @@ def init_networks(opt,rank):
 
     net_g = LawDNet(opt.source_channel, opt.ref_channel, opt.audio_channel, 
                     opt.warp_layer_num, opt.num_kpoints, opt.coarse_grid_size).to(rank)
-    net_dI = Discriminator(opt.source_channel, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).cuda()
-    net_dV = Discriminator(opt.source_channel * 5, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).cuda()
+    net_dI = Discriminator(opt.source_channel, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).to(rank)
+    net_dV = Discriminator(opt.source_channel * 5, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).to(rank)
     net_vgg = Vgg19().to(rank)
     net_lipsync = SyncNetPerception(opt.pretrained_syncnet_path).to(rank)
+    print("net_lipsync is loaded")
 
     # device_ids = [int(x) for x in opt.cuda_devices.split(',')]
 
     # 其它网络没有DDP
     net_g = DDP(net_g, device_ids=[rank], output_device=rank, find_unused_parameters=True)
+    print("net_g is loaded with DDP")
     net_dI = DDP(net_dI, device_ids=[rank], output_device=rank, find_unused_parameters=True)
+    print("net_dI is loaded with DDP")
     net_dV = DDP(net_dV, device_ids=[rank], output_device=rank, find_unused_parameters=True)
-    net_vgg = net_vgg.to(device)
-    net_lipsync = net_lipsync.to(device)
+    print("net_dV is loaded with DDP")
 
     return net_g, net_dI, net_dV, net_vgg, net_lipsync
 
@@ -171,10 +174,10 @@ def load_pretrained_weights(net_g, opt):
     
 # 设置损失函数
 def setup_criterion():
-    criterionGAN = GANLoss().cuda()
-    criterionL1 = nn.L1Loss().cuda()
-    criterionMSE = nn.MSELoss().cuda()
-    criterionCosine = nn.CosineEmbeddingLoss().cuda()
+    criterionGAN = GANLoss()
+    criterionL1 = nn.L1Loss()
+    criterionMSE = nn.MSELoss()
+    criterionCosine = nn.CosineEmbeddingLoss()
     return criterionGAN, criterionL1, criterionMSE, criterionCosine
 
 # 设置学习率调度器
@@ -204,6 +207,7 @@ def train(
     net_dV, 
     training_data_loader, 
     train_sampler,
+    rank,
     optimizer_g, 
     optimizer_dI, 
     optimizer_dV, 
@@ -215,27 +219,34 @@ def train(
     net_dI_scheduler, 
     net_dV_scheduler
 ):
-    
+    device_id = rank % torch.cuda.device_count()
+    criterionMSE = criterionMSE.to(device_id)
+    criterionGAN = criterionGAN.to(device_id)
+    criterionL1 = criterionL1.to(device_id)
+    criterionCosine = criterionCosine.to(device_id)
+
+
     # 混合精度训练：Creates a GradScaler once at the beginning of training.
+    
     scaler = torch.cuda.amp.GradScaler(enabled=True)
 
-    smooth_sqmask = SmoothSqMask().cuda()
+    smooth_sqmask = SmoothSqMask(device=device_id).to(device_id)
 
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay + 1):
         train_sampler.set_epoch(epoch)
-        # 训练代码 ...
+        net_g.train()
         for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
             source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag = data
-
+            flag = flag.to(device_id)
             # 检查是否有脏数据
-            if not (flag.equal(torch.ones(opt.batch_size, 1, device='cuda'))):
+            if not (flag.equal(torch.ones(opt.batch_size, 1, device=device_id))):
                 print("跳过含有脏数据的批次")
                 continue
             
-            source_clip = torch.cat(torch.split(source_clip, 1, dim=1), 0).squeeze(1).float().cuda()
-            reference_clip = torch.cat(torch.split(reference_clip, 1, dim=1), 0).squeeze(1).float().cuda()
-            deep_speech_clip = torch.cat(torch.split(deep_speech_clip, 1, dim=1), 0).squeeze(1).float().cuda()
-            deep_speech_full = deep_speech_full.float().cuda()
+            source_clip = torch.cat(torch.split(source_clip, 1, dim=1), 0).squeeze(1).float().to(device_id)
+            reference_clip = torch.cat(torch.split(reference_clip, 1, dim=1), 0).squeeze(1).float().to(device_id)
+            deep_speech_clip = torch.cat(torch.split(deep_speech_clip, 1, dim=1), 0).squeeze(1).float().to(device_id)
+            deep_speech_full = deep_speech_full.float().to(device_id)
 
             # 生成mask
             source_clip_mask = smooth_sqmask(source_clip)
@@ -307,7 +318,7 @@ def train(
                     fake_out_clip_mouth = fake_out_clip_mouth_origin_size
 
                 sync_score = net_lipsync(fake_out_clip_mouth, deep_speech_full)
-                loss_sync = criterionMSE(sync_score, torch.tensor(1.0).expand_as(sync_score).cuda())
+                loss_sync = criterionMSE(sync_score, torch.tensor(1.0).expand_as(sync_score).to(device_id))
 
                 # -----------------MSE损失计算部分----------------- #
                 loss_img = criterionMSE(fake_out, source_clip)
@@ -318,7 +329,7 @@ def train(
             scaler.update()
 
             # 记录到WandB
-            if iteration % opt.freq_wandb == 0:
+            if rank == 0 and iteration % opt.freq_wandb == 0:
                 log_to_wandb(source_clip, fake_out)
                 wandb.log({
                     "epoch": epoch, 
@@ -390,9 +401,9 @@ if __name__ == "__main__":
     # 添加主节点端口参数
     config_parser.add_argument('--master_port', type=str, default='12355', help="Port of the master node for distributed training.")
     
-    rank = int(os.environ["LOCAL_RANK"])
-    world_size = int(os.environ["WORLD_SIZE"])
-    setup(rank, world_size, master_addr=args.master_addr, master_port=args.master_port)
+    dist.init_process_group("nccl")
+    rank = dist.get_rank()
+    world_size = dist.get_world_size()
 
     args, remaining_argv = config_parser.parse_known_args()
 
@@ -423,6 +434,7 @@ if __name__ == "__main__":
         net_dV, 
         training_data_loader, 
         train_sampler, 
+        rank,
         optimizer_g, 
         optimizer_dI, 
         optimizer_dV, 
@@ -436,9 +448,4 @@ if __name__ == "__main__":
     )
 
     cleanup()
-
-
-### 记得在sun文件夹中设置export CUDA_VISIBLE_DEVICES=1,2
-
-## CUDA_VISIBLE_DEVICES=1,2 torchrun --nproc_per_node=2 train_script.py
 
