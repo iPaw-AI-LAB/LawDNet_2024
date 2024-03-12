@@ -146,7 +146,7 @@ def setup_optimizers(net_g, net_dI, net_dV):
     return optimizer_g, optimizer_dI, optimizer_dV
 
 
-def load_pretrained_weights(net_g, opt):
+def load_pretrained_weights(net_g, opt, args):
     """
     Loads the pretrained weights into the model if a valid path is provided.
 
@@ -159,6 +159,9 @@ def load_pretrained_weights(net_g, opt):
     """
 
     if opt.pretrained_frame_DINet_path:
+        path_parts = opt.pretrained_frame_DINet_path.rsplit('/', 2)
+        # 在倒数第2个/之前插入本次实验的名字
+        opt.pretrained_frame_DINet_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}'
         try:
             print(f'Loading frame trained DINet weight from: {opt.pretrained_frame_DINet_path}')
             checkpoint = torch.load(opt.pretrained_frame_DINet_path)
@@ -421,7 +424,7 @@ if __name__ == "__main__":
 
     optimizer_g, optimizer_dI, optimizer_dV = setup_optimizers(net_g, net_dI, net_dV)
 
-    load_pretrained_weights(net_g, opt)
+    load_pretrained_weights(net_g, opt, args)
 
     criterionGAN, criterionL1, criterionMSE, criterionCosine = setup_criterion()
 

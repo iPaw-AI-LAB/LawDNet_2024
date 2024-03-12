@@ -8,7 +8,7 @@
 # 代码使用说明
 
 ## 训练 
-
+### DP并行方式训练-慢
 采用coarse to fine 的训练策略，每个阶段有自己的config文件，父文件是```./config/config.py```
 ```python
 python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_64.py" --name "name_of_this_experiment" 
@@ -18,6 +18,14 @@ python train_LawDNet_frame.py --config_path "./config/experiment/config_experime
 python train_LawDNet_clip.py --config_path "./config/experiment/config_experiment_clip_256.py" --name "name_of_this_experiment" 
 ```
 或直接执行脚本：```sh ./train_sequence.sh```
+
+### DDP 并行训练方式 - 快
+打开```train_sequence_distributed.sh``` 修改NAME(实验名称)
+
+直接执行脚本：```sh train_sequence_distributed.sh```
+
+### 模型保存路径
+```autodl拿过来的/DINet-update/output/training_model_weight/NAME(实验名称)```
 
 [基于codebase仓库DINet重构](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
 
@@ -122,6 +130,9 @@ python data_processing_正脸化.py [OPTIONS]
     - 得到正脸化的crop landmark 字典 `./asserts/training_data/landmark_crop_dic.npy`
 5. 若需要合并不同数据集的字典`landmark_crop_dic.npy`,可运行`autodl-tmp/DINet-gitee/DINet-update/asserts/training_data/邓-处理大数据集.ipynb`
 5. 重新生成完整的json文件 `python data_processing_正脸化.py --generate_training_json` 
+
+- 若要更换数据集，请将数据集命名为training_data
+- 测试用的小数据集 training_data-一个中国人
 
 ## 常用的训练命令/测试命令
 [【腾讯文档】DINet常用命令-dengjunli](

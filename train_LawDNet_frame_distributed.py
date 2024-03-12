@@ -106,7 +106,7 @@ def setup_optimizers(net_g, net_dI, opt):
     optimizer_dI = optim.AdamW(net_dI.parameters(), lr=opt.lr_dI)
     return optimizer_g, optimizer_dI
 
-def load_coarse2fine_checkpoint(net_g, opt):
+def load_coarse2fine_checkpoint(net_g, opt, args):
     """
     Loads a coarse2fine training checkpoint into the model if the coarse2fine option is set to True.
 
@@ -119,6 +119,10 @@ def load_coarse2fine_checkpoint(net_g, opt):
     """
 
     if opt.coarse2fine and opt.coarse_model_path:
+        # 根据实验名称直接修改文件夹名字
+        path_parts = opt.coarse_model_path.rsplit('/', 2)
+        # 在倒数第2个/之前插入本次实验的名字
+        opt.coarse_model_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}'
         try:
             print(f'Loading checkpoint for coarse2fine training from: {opt.coarse_model_path}')
             checkpoint = torch.load(opt.coarse_model_path)
@@ -371,7 +375,7 @@ if __name__ == "__main__":
 
     optimizer_g, optimizer_dI = setup_optimizers(net_g, net_dI, opt)
 
-    load_coarse2fine_checkpoint(net_g, opt)
+    load_coarse2fine_checkpoint(net_g, opt, args)
 
     criterionGAN, criterionL1, criterionL2 = setup_criterion()
 
