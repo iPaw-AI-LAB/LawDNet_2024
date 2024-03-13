@@ -218,6 +218,7 @@ def train(
             source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag = data
 
             # 检查是否有脏数据
+            flag = flag.cuda()
             if not (flag.equal(torch.ones(opt.batch_size, 1, device='cuda'))):
                 print("跳过含有脏数据的批次")
                 continue

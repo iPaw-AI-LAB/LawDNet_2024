@@ -122,7 +122,7 @@ def load_coarse2fine_checkpoint(net_g, opt, args):
         # 根据实验名称直接修改文件夹名字
         path_parts = opt.coarse_model_path.rsplit('/', 2)
         # 在倒数第2个/之前插入本次实验的名字
-        opt.coarse_model_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}'
+        opt.coarse_model_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}/{path_parts[2]}'
         try:
             print(f'Loading checkpoint for coarse2fine training from: {opt.coarse_model_path}')
             checkpoint = torch.load(opt.coarse_model_path)

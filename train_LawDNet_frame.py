@@ -199,6 +199,7 @@ def train(
         net_g.train()
         for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
             source_image_data, reference_clip_data, deepspeech_feature, flag = data
+            flag = flag.cuda()
             if not (flag.equal(torch.ones(opt.batch_size, 1, device='cuda'))):
                 print("Skipping batch with dirty data")
                 continue

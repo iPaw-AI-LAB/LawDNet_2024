@@ -93,7 +93,7 @@ class DINetDataset(Dataset):
                  - deep_speech_full：完整的深度语音特征。
                  - flag：标志位，指示数据是否有效。
         """
-        flag = torch.ones(1, device=self.device)
+        flag = torch.ones(1)
         video_name = self.data_dic_name_list[index]
         video_clip_num = len(self.data_dic[video_name]['clip_data_list'])
 
@@ -135,10 +135,10 @@ class DINetDataset(Dataset):
         deep_speech_clip = np.stack(deep_speech_list, 0)
         reference_clip = np.stack(reference_clip_list, 0)
 
-        source_clip = torch.from_numpy(source_clip).float().permute(0, 3, 1, 2).to(self.device)
-        reference_clip = torch.from_numpy(reference_clip).float().permute(0, 3, 1, 2).to(self.device)
-        deep_speech_clip = torch.from_numpy(deep_speech_clip).float().permute(0, 2, 1).to(self.device)
-        deep_speech_full = torch.from_numpy(deep_speech_full).permute(1, 0).to(self.device) 
+        source_clip = torch.from_numpy(source_clip).float().permute(0, 3, 1, 2)
+        reference_clip = torch.from_numpy(reference_clip).float().permute(0, 3, 1, 2)
+        deep_speech_clip = torch.from_numpy(deep_speech_clip).float().permute(0, 2, 1)
+        deep_speech_full = torch.from_numpy(deep_speech_full).permute(1, 0) 
 
         return source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag
 
@@ -151,11 +151,11 @@ class DINetDataset(Dataset):
         当数据有误时，返回零样本，不是随机样本，包括批处理情况。
         """
         shape = (5, 3, self.img_h, self.img_w)  # 假定批大小为5，通道数为3
-        source_clip = torch.zeros(shape, device=self.device)
-        reference_clip = torch.zeros((5, 15, self.img_h, self.img_w), device=self.device)  # 假定参考帧拼接后通道数为15
-        deep_speech_clip = torch.zeros((5, 29, 5), device=self.device)  # 假定深度语音特征维度
-        deep_speech_full = torch.zeros((29, 9), device=self.device)
-        flag = torch.zeros(1, device=self.device)
+        source_clip = torch.zeros(shape)
+        reference_clip = torch.zeros((5, 15, self.img_h, self.img_w))  # 假定参考帧拼接后通道数为15
+        deep_speech_clip = torch.zeros((5, 29, 5))  # 假定深度语音特征维度
+        deep_speech_full = torch.zeros((29, 9))
+        flag = torch.zeros(1)
         return source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag
 
     def preprocess_image_data(self, image_path):

@@ -55,7 +55,7 @@ class DINetDataset(Dataset):
         :param index: 数据项的索引。
         :return: 元组(source_image_data, reference_clip_data, deepspeech_feature, flag)
         """
-        flag = torch.ones(1, device=self.device)
+        flag = torch.ones(1)
         video_name = self.data_dic_name_list[index]
         video_clip_num = len(self.data_dic[video_name]['clip_data_list'])
 
@@ -96,10 +96,10 @@ class DINetDataset(Dataset):
             print(f"数据问题：{video_name}, deepspeech_feature形状：{deepspeech_feature.shape}")
             return self.zeros_sample()
 
-        source_image_data_tensor = torch.tensor(source_image_data).float().permute(2, 0, 1).to(self.device)
-        # source_image_mask_tensor = torch.tensor(source_image_mask).float().permute(2, 0, 1).to(self.device)
-        reference_clip_data_tensor = torch.tensor(reference_clip_data).float().permute(2, 0, 1).to(self.device)
-        deepspeech_feature_tensor = torch.tensor(deepspeech_feature).float().permute(1, 0).to(self.device)
+        source_image_data_tensor = torch.tensor(source_image_data).float().permute(2, 0, 1)
+        # source_image_mask_tensor = torch.tensor(source_image_mask).float().permute(2, 0, 1)
+        reference_clip_data_tensor = torch.tensor(reference_clip_data).float().permute(2, 0, 1)
+        deepspeech_feature_tensor = torch.tensor(deepspeech_feature).float().permute(1, 0)
 
         return source_image_data_tensor, reference_clip_data_tensor, deepspeech_feature_tensor, flag
 
@@ -114,11 +114,11 @@ class DINetDataset(Dataset):
         """
         当数据有误时，返回随机样本和标志位0。
         """
-        source_image_data = torch.zeros((3, self.img_h, self.img_w), device=self.device)
-        source_image_mask = torch.zeros((3, self.img_h, self.img_w), device=self.device)
-        reference_clip_data = torch.zeros((15, self.img_h, self.img_w), device=self.device)  # 假设有5个参考帧，每帧3个通道
-        deep_speech_full = torch.zeros((29, 5), device=self.device)
-        return source_image_data, reference_clip_data, deep_speech_full, torch.zeros(1, device=self.device)
+        source_image_data = torch.zeros((3, self.img_h, self.img_w))
+        # source_image_mask = torch.zeros((3, self.img_h, self.img_w))
+        reference_clip_data = torch.zeros((15, self.img_h, self.img_w))  # 假设有5个参考帧，每帧3个通道
+        deep_speech_full = torch.zeros((29, 5))
+        return source_image_data, reference_clip_data, deep_speech_full, torch.zeros(1)
 
     def preprocess_image(self, image_path):
         """

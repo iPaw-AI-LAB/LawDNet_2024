@@ -161,7 +161,7 @@ def load_pretrained_weights(net_g, opt, args):
     if opt.pretrained_frame_DINet_path:
         path_parts = opt.pretrained_frame_DINet_path.rsplit('/', 2)
         # 在倒数第2个/之前插入本次实验的名字
-        opt.pretrained_frame_DINet_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}'
+        opt.pretrained_frame_DINet_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}/{path_parts[2]}'
         try:
             print(f'Loading frame trained DINet weight from: {opt.pretrained_frame_DINet_path}')
             checkpoint = torch.load(opt.pretrained_frame_DINet_path)

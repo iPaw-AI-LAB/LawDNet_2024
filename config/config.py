@@ -53,8 +53,8 @@ class DINetTrainingOptions():
         self.parser.add_argument('--cuda_devices', type=str, default='0,1',
                             help='CUDA devices to use (e.g., "0,1,2,3")')
         self.parser.add_argument('--seed', type=int, default=456, help='random seed to use.')
-        self.parser.add_argument('--num_workers', type=int, default=0, help='num of workers to use.')
-        self.parser.add_argument('--pin_memory', type=bool, default=False, help='pin memory to use.')
+        self.parser.add_argument('--num_workers', type=int, default=32, help='num of workers to use.')
+        self.parser.add_argument('--pin_memory', type=bool, default=True, help='pin memory to use.')
         self.parser.add_argument('--source_channel', type=int, default=3, help='input source image channels')
         self.parser.add_argument('--ref_channel', type=int, default=15, help='input reference image channels')
         self.parser.add_argument('--audio_channel', type=int, default=29, help='input audio channels')
