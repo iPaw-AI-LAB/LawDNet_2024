@@ -76,7 +76,14 @@ def load_config_and_device(args):
     if rank == 0:
         wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
     '''加载配置和设置设备'''
-    
+
+    random.seed(opt.seed)
+    np.random.seed(opt.seed)
+    torch.cuda.manual_seed_all(opt.seed)
+    torch.manual_seed(opt.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # 根据实验名称直接修改文件夹名字
@@ -91,7 +98,13 @@ def init_networks(opt, rank):
     net_g = LawDNet(opt.source_channel, opt.ref_channel, opt.audio_channel, 
                     opt.warp_layer_num, opt.num_kpoints, opt.coarse_grid_size).to(rank)
     net_dI = Discriminator(opt.source_channel, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).to(rank)
+
     net_vgg = Vgg19().to(rank)
+
+    # torch2.0 compile
+    # net_g = torch.compile(net_g, mode="reduce-overhead")
+    # net_dI = torch.compile(net_dI, mode="reduce-overhead")
+    # net_vgg = torch.compile(net_vgg, mode="reduce-overhead").to(rank)
 
     net_g = DDP(net_g, device_ids=[rank], find_unused_parameters=True)
     net_dI = DDP(net_dI, device_ids=[rank], find_unused_parameters=True)
@@ -286,6 +299,8 @@ def train(
             # 混合精度训练
             scaler.update()
 
+            dist.barrier()
+
             if rank == 0:
                 if iteration % opt.freq_wandb == 0:
                     log_to_wandb(source_image_data, fake_out)
@@ -401,3 +416,5 @@ if __name__ == "__main__":
     wandb.finish()
 
     cleanup()
+
+    # time.sleep(5)  

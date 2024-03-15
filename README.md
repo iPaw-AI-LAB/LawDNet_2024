@@ -8,21 +8,18 @@
 # 代码使用说明
 
 ## 训练 
-### DP并行方式训练-慢
 采用coarse to fine 的训练策略，每个阶段有自己的config文件，父文件是```./config/config.py```
-```python
-python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_64.py" --name "name_of_this_experiment" 
-python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_128.py" --name "name_of_this_experiment" 
-python train_LawDNet_frame.py --config_path "./config/experiment/config_experiment_frame_256.py" --name "name_of_this_experiment" 
-
-python train_LawDNet_clip.py --config_path "./config/experiment/config_experiment_clip_256.py" --name "name_of_this_experiment" 
-```
-或直接执行脚本：```sh ./train_sequence.sh```
 
 ### DDP 并行训练方式 - 快
 打开```train_sequence_distributed.sh``` 修改NAME(实验名称)
-
 直接执行脚本：```sh train_sequence_distributed.sh```
+
+
+
+### DP并行方式训练-慢
+或直接执行脚本：```sh ./train_sequence.sh```
+
+
 
 ### 模型保存路径
 ```autodl拿过来的/DINet-update/output/training_model_weight/NAME(实验名称)```

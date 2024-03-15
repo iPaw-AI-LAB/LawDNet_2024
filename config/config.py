@@ -53,13 +53,13 @@ class DINetTrainingOptions():
         self.parser.add_argument('--cuda_devices', type=str, default='0,1',
                             help='CUDA devices to use (e.g., "0,1,2,3")')
         self.parser.add_argument('--seed', type=int, default=456, help='random seed to use.')
-        self.parser.add_argument('--num_workers', type=int, default=32, help='num of workers to use.')
+        self.parser.add_argument('--num_workers', type=int, default=8, help='num of workers to use.')
         self.parser.add_argument('--pin_memory', type=bool, default=True, help='pin memory to use.')
         self.parser.add_argument('--source_channel', type=int, default=3, help='input source image channels')
         self.parser.add_argument('--ref_channel', type=int, default=15, help='input reference image channels')
         self.parser.add_argument('--audio_channel', type=int, default=29, help='input audio channels')
         self.parser.add_argument('--augment_num', type=int, default=32, help='augment training data')
-        self.parser.add_argument('--mouth_region_size', type=int, default=64, help='augment training data')
+        self.parser.add_argument('--mouth_region_size', type=int, default=288, help='augment training data')
         self.parser.add_argument('--train_data', type=str, default=r"{}/training_json.json".format(self.training_data_path),
                             help='path of training json')
         self.parser.add_argument('--batch_size', type=int, default=24, help='training batch size')
@@ -122,49 +122,49 @@ class DINetTrainingOptions():
         return parsed_args
 
 
-class DINetInferenceOptions():
-    def __init__(self):
-        self.parser = argparse.ArgumentParser()
+# class DINetInferenceOptions():
+    # def __init__(self):
+    #     self.parser = argparse.ArgumentParser()
 
-    def parse_args(self,args=None):
-        self.parser.add_argument('--cuda_devices', type=str, default='3', help='CUDA devices to use (e.g., "3")')
-        self.parser.add_argument('--source_channel', type=int, default=3, help='channels of source image')
-        self.parser.add_argument('--ref_channel', type=int, default=15, help='channels of reference image')
-        self.parser.add_argument('--audio_channel', type=int, default=29, help='channels of audio feature')
-        self.parser.add_argument('--mouth_region_size', type=int, default=256, help='help to resize window')
-        self.parser.add_argument('--source_video_path',
-                                 default='./asserts/examples/test4.mp4',
-                                 type=str,
-                                 help='path of source video')
-        self.parser.add_argument('--source_openface_landmark_path',
-                                 default='./asserts/examples/test4.csv',
-                                 type=str,
-                                 help='path of detected openface landmark')
-        self.parser.add_argument('--driving_audio_path',
-                                 default='./asserts/examples/driving_audio_1.wav',
-                                 type=str,
-                                 help='path of driving audio')
-        self.parser.add_argument('--pretrained_clip_DINet_path',
-                                 default='./asserts/clip_training_DINet_256mouth.pth',
-                                 type=str,
-                                 help='pretrained model of DINet(clip trained)')
-        self.parser.add_argument('--deepspeech_model_path',
-                                 default='./asserts/output_graph.pb',
-                                 type=str,
-                                 help='path of deepspeech model')
-        self.parser.add_argument('--res_video_dir',
-                                 default='./asserts/inference_result',
-                                 type=str,
-                                 help='path of generated videos')
-        ## ######################## LawDNet ########################
-        # 关键点数量
-        self.parser.add_argument('--num_kpoints', type=int, default=5, help='num_keypoints of local affine warping') 
-        # coarse grid size
-        self.parser.add_argument('--coarse_grid_size', type=int, default=60, help='coarse grid size of local affine warping')
-        # warping layers num
-        self.parser.add_argument('--warp_layer_num', type=int, default=2, help='warping layers num of local affine warping')
+    # def parse_args(self,args=None):
+    #     self.parser.add_argument('--cuda_devices', type=str, default='3', help='CUDA devices to use (e.g., "3")')
+    #     self.parser.add_argument('--source_channel', type=int, default=3, help='channels of source image')
+    #     self.parser.add_argument('--ref_channel', type=int, default=15, help='channels of reference image')
+    #     self.parser.add_argument('--audio_channel', type=int, default=29, help='channels of audio feature')
+    #     self.parser.add_argument('--mouth_region_size', type=int, default=256, help='help to resize window')
+    #     self.parser.add_argument('--source_video_path',
+    #                              default='./asserts/examples/test4.mp4',
+    #                              type=str,
+    #                              help='path of source video')
+    #     self.parser.add_argument('--source_openface_landmark_path',
+    #                              default='./asserts/examples/test4.csv',
+    #                              type=str,
+    #                              help='path of detected openface landmark')
+    #     self.parser.add_argument('--driving_audio_path',
+    #                              default='./asserts/examples/driving_audio_1.wav',
+    #                              type=str,
+    #                              help='path of driving audio')
+    #     self.parser.add_argument('--pretrained_clip_DINet_path',
+    #                              default='./asserts/clip_training_DINet_256mouth.pth',
+    #                              type=str,
+    #                              help='pretrained model of DINet(clip trained)')
+    #     self.parser.add_argument('--deepspeech_model_path',
+    #                              default='./asserts/output_graph.pb',
+    #                              type=str,
+    #                              help='path of deepspeech model')
+    #     self.parser.add_argument('--res_video_dir',
+    #                              default='./asserts/inference_result',
+    #                              type=str,
+    #                              help='path of generated videos')
+    #     ## ######################## LawDNet ########################
+    #     # 关键点数量
+    #     self.parser.add_argument('--num_kpoints', type=int, default=5, help='num_keypoints of local affine warping') 
+    #     # coarse grid size
+    #     self.parser.add_argument('--coarse_grid_size', type=int, default=60, help='coarse grid size of local affine warping')
+    #     # warping layers num
+    #     self.parser.add_argument('--warp_layer_num', type=int, default=2, help='warping layers num of local affine warping')
         
-        if args:
-            return self.parser.parse_args(args)
-        return self.parser.parse_args()
+    #     if args:
+    #         return self.parser.parse_args(args)
+    #     return self.parser.parse_args()
 

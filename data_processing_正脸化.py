@@ -199,8 +199,10 @@ def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_pa
                 logging.error(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_path_list)}) does not match clip length ({clip_length}).')
                 print(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_path_list)}) does not match clip length ({clip_length}).')
                 # 删除len(frame_path_list)为0的文件夹
-                if len(frame_path_list) == 0 and os.path.isdir(frame_path_list):
+                # import pdb;pdb.set_trace()
+                if len(frame_path_list) == 0 and os.path.isdir(clip_frame_dir):
                     shutil.rmtree(clip_frame_dir)
+                    print('delete clip_frame_dir:',clip_frame_dir)
                 continue
 
             start_index = int(float(clip_name) * clip_length)

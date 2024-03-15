@@ -27,7 +27,7 @@ from config.config import DINetTrainingOptions
 from sync_batchnorm import convert_model
 from torch.utils.data import DataLoader
 from dataset.dataset_DINet_clip import DINetDataset
-from models.Gaussian_blur import Gaussian_bluring
+# from models.Gaussian_blur import Gaussian_bluring
 from tensor_processing import SmoothSqMask
 from models.content_model import AudioContentModel, LipContentModel
 from torch.nn.utils import clip_grad_norm_
@@ -82,6 +82,13 @@ def load_config_and_device(args):
     # 假设 wandb 已经初始化
     if rank == 0:
         wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
+
+    random.seed(opt.seed)
+    np.random.seed(opt.seed)
+    torch.cuda.manual_seed_all(opt.seed)
+    torch.manual_seed(opt.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -124,6 +131,14 @@ def init_networks(opt,rank):
     net_dV = Discriminator(opt.source_channel * 5, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).to(rank)
     net_vgg = Vgg19().to(rank)
     net_lipsync = SyncNetPerception(opt.pretrained_syncnet_path).to(rank)
+
+    # torch2.0 compile
+    # net_g = torch.compile(net_g, mode="reduce-overhead")
+    # net_dI = torch.compile(net_dI, mode="reduce-overhead")
+    # net_dV = torch.compile(net_dV, mode="reduce-overhead")
+    # net_vgg = torch.compile(net_vgg, mode="reduce-overhead").to(rank)
+    # net_lipsync = torch.compile(net_lipsync, mode="reduce-overhead").to(rank)
+
     print("net_lipsync is loaded")
 
     # device_ids = [int(x) for x in opt.cuda_devices.split(',')]
@@ -180,8 +195,8 @@ def setup_criterion():
     criterionGAN = GANLoss()
     criterionL1 = nn.L1Loss()
     criterionMSE = nn.MSELoss()
-    criterionCosine = nn.CosineEmbeddingLoss()
-    return criterionGAN, criterionL1, criterionMSE, criterionCosine
+    # criterionCosine = nn.CosineEmbeddingLoss()
+    return criterionGAN, criterionL1, criterionMSE
 
 # 设置学习率调度器
 def setup_schedulers(optimizer_g, optimizer_dI, optimizer_dV):
@@ -191,15 +206,15 @@ def setup_schedulers(optimizer_g, optimizer_dI, optimizer_dV):
     return net_g_scheduler, net_dI_scheduler, net_dV_scheduler
 
 def log_to_wandb(source_clip, fake_out):
-    source_clip = source_clip.float()  # 将数据转换为全精度
-    fake_out = fake_out.float()        # 同上
+    # source_clip = source_clip.float()  # 将数据转换为全精度
+    # fake_out = fake_out.float()        # 同上
 
     # 可视化原始source_clip
-    images_source = [wandb.Image(source_clip[i].cpu(), caption=f"Source Clip {i}") for i in range(source_clip.shape[0])]
+    images_source = [wandb.Image(source_clip[i].float().detach().cpu(), caption=f"Source Clip {i}") for i in range(source_clip.shape[0])]
     wandb.log({"Source Clips": images_source})
     
     # 可视化fake_out
-    images_fake_out = [wandb.Image(fake_out[i].cpu(), caption=f"Fake Out {i}") for i in range(fake_out.shape[0])]
+    images_fake_out = [wandb.Image(fake_out[i].float().detach().cpu(), caption=f"Fake Out {i}") for i in range(fake_out.shape[0])]
     wandb.log({"Fake Outs": images_fake_out})
 
 # 训练过程
@@ -217,7 +232,6 @@ def train(
     criterionGAN, 
     criterionL1, 
     criterionMSE, 
-    criterionCosine, 
     net_g_scheduler, 
     net_dI_scheduler, 
     net_dV_scheduler
@@ -226,7 +240,7 @@ def train(
     criterionMSE = criterionMSE.to(device_id)
     criterionGAN = criterionGAN.to(device_id)
     criterionL1 = criterionL1.to(device_id)
-    criterionCosine = criterionCosine.to(device_id)
+    # criterionCosine = criterionCosine.to(device_id)
 
 
     # 混合精度训练：Creates a GradScaler once at the beginning of training.
@@ -359,6 +373,8 @@ def train(
         update_learning_rate(net_dI_scheduler, optimizer_dI)
         update_learning_rate(net_dV_scheduler, optimizer_dV)
 
+        dist.barrier()
+
 
         if rank == 0:
             # 保存和加载模型的代码
@@ -426,7 +442,7 @@ if __name__ == "__main__":
 
     load_pretrained_weights(net_g, opt, args)
 
-    criterionGAN, criterionL1, criterionMSE, criterionCosine = setup_criterion()
+    criterionGAN, criterionL1, criterionMSE = setup_criterion()
 
     net_g_scheduler, net_dI_scheduler, net_dV_scheduler = setup_schedulers(optimizer_g, optimizer_dI, optimizer_dV)
 
@@ -444,7 +460,6 @@ if __name__ == "__main__":
         criterionGAN, 
         criterionL1, 
         criterionMSE, 
-        criterionCosine, 
         net_g_scheduler, 
         net_dI_scheduler, 
         net_dV_scheduler

@@ -278,7 +278,7 @@ class SameBlock2d(nn.Module):
 
 
 class LawDNet(nn.Module):
-    def __init__(self, source_channel = 5,ref_channel = 15,audio_channel = 29, warp_layer_num =2, num_kpoints=5, standard_grid_size=60):
+    def __init__(self, source_channel = 5, ref_channel = 15, audio_channel = 29, warp_layer_num =2, num_kpoints=5, standard_grid_size=60):
         super(LawDNet, self).__init__()
 
         self.warp_layer_num = warp_layer_num
@@ -358,6 +358,7 @@ class LawDNet(nn.Module):
             ref_in_feature = self.ref_in_conv(ref_img) # 5*batchsize 256 104 80
 
             ## alignment encoder
+            ## apeareance feature
             img_para = self.trans_conv(torch.cat([source_in_feature,ref_in_feature],1)) # 5*batchsize 128 7 5 
             img_para = self.global_avg2d(img_para).squeeze(3).squeeze(2) # 5*batchsize 128
 
