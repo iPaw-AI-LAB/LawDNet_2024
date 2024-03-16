@@ -154,6 +154,7 @@ https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
 ### bug
 1. 处理数据集的时候，金鹏数据集的crop face的长度和deepspeech长度不一致
 2. 音频的deepspeech帧数总比视频帧多3帧
+3. 对loss的权重敏感，尤其是syncnet_loss
 
 
 
