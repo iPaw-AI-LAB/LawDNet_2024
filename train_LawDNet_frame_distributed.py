@@ -60,7 +60,7 @@ def load_experiment_config(config_module_path):
     spec.loader.exec_module(config_module)
     return config_module.experiment_config
 
-def load_config_and_device(args):
+def load_config_and_device(args,rank):
     # 动态加载配置文件
     experiment_config = load_experiment_config(args.config_path)
 
@@ -77,10 +77,10 @@ def load_config_and_device(args):
         wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
     '''加载配置和设置设备'''
 
-    random.seed(opt.seed)
-    np.random.seed(opt.seed)
-    torch.cuda.manual_seed_all(opt.seed)
-    torch.manual_seed(opt.seed)
+    random.seed(opt.seed + rank)
+    np.random.seed(opt.seed+ rank)
+    torch.cuda.manual_seed_all(opt.seed+rank)
+    torch.manual_seed(opt.seed+rank)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -105,7 +105,7 @@ def init_networks(opt, rank):
     # net_g = torch.compile(net_g, mode="reduce-overhead")
     # net_dI = torch.compile(net_dI, mode="reduce-overhead")
     # net_vgg = torch.compile(net_vgg, mode="reduce-overhead").to(rank)
-
+    net_g = convert_model(net_g)
     net_g = DDP(net_g, device_ids=[rank], find_unused_parameters=True)
     net_dI = DDP(net_dI, device_ids=[rank], find_unused_parameters=True)
     print("DDP initialized, rank: ", rank)
@@ -196,7 +196,7 @@ def log_to_wandb(source_image_data, fake_out):
     fake_out = fake_out.float()        # 同上 
 
     source_images = []
-    for i in range(source_image_data.shape[0]):  # Limit to first 5 images
+    for i in range(source_image_data.shape[0]): 
         img = source_image_data[i].permute(1, 2, 0).detach().cpu().numpy()
         img = (img * 255).round().astype(np.uint8)
         source_images.append(wandb.Image(img, caption=f"Source {i}"))
@@ -204,7 +204,7 @@ def log_to_wandb(source_image_data, fake_out):
 
     # Log generated (fake) images
     fake_images = []
-    for i in range(fake_out.shape[0]):  # Limit to first 5 images
+    for i in range(fake_out.shape[0]): 
         img = fake_out[i].permute(1, 2, 0).detach().cpu().numpy()
         img = (img * 255).round().astype(np.uint8)
         fake_images.append(wandb.Image(img, caption=f"Fake {i}"))
@@ -285,21 +285,25 @@ def train(
                 perception_fake_half = net_vgg(fake_out_half)
 
                 # Calculate perception loss
-                loss_g_perception = sum([criterionL1(perception_fake[i], perception_real[i]) + criterionL1(perception_fake_half[i], perception_real_half[i]) for i in range(len(perception_real))]) / (len(perception_real) * 2)
+                loss_g_perception = 0
+                for i in range(len(perception_real)):
+                    loss_g_perception += criterionL1(perception_fake[i], perception_real[i])
+                    loss_g_perception += criterionL1(perception_fake_half[i], perception_real_half[i])
+                loss_g_perception = (loss_g_perception / (len(perception_real) * 2)) * opt.lamb_perception
 
                 # Calculate GAN loss
-                loss_g_dI = criterionGAN(pred_fake_dI, True)
+                loss_g_dI = criterionGAN(pred_fake_dI, True) * opt.lambda_g_dI
 
                 # Calculate MSE loss
-                loss_img = criterionL2(fake_out, source_image_data)
+                loss_img = criterionL2(fake_out, source_image_data) * opt.lambda_img
 
-                loss_g = loss_img * opt.lambda_img + loss_g_perception * opt.lamb_perception + loss_g_dI * opt.lambda_g_dI
+                loss_g = loss_img  + loss_g_perception + loss_g_dI 
             scaler.scale(loss_g).backward()
             scaler.step(optimizer_g)
             # 混合精度训练
             scaler.update()
 
-            dist.barrier()
+            # dist.barrier()
 
             if rank == 0:
                 if iteration % opt.freq_wandb == 0:
@@ -310,11 +314,12 @@ def train(
                         "loss_g": loss_g.item(),
                         "loss_img": loss_img.item(),
                         "loss_g_perception": loss_g_perception.item(),
-                        "loss_g_dI": loss_g_dI.item()
+                        "loss_g_dI": loss_g_dI.item(),
+                        "learning_rate_g": optimizer_g.param_groups[0]["lr"],
                     })
                     print(f"\nEpoch {epoch}, iteration {iteration}, loss_dI: {loss_dI.item()}, loss_g: {loss_g.item()}, "
                         f"loss_img: {loss_img.item()}, loss_g_perception: {loss_g_perception.item()}, "
-                        f"loss_g_dI: {loss_g_dI.item()}")
+                        f"loss_g_dI: {loss_g_dI.item()}, learning_rate_g: {optimizer_g.param_groups[0]['lr']}")
 
         # Update learning rates
         update_learning_rate(net_g_scheduler, optimizer_g)
@@ -380,7 +385,7 @@ if __name__ == "__main__":
 
     init_wandb(args.name, rank)
 
-    opt, device = load_config_and_device(args)
+    opt, device = load_config_and_device(args,rank)
 
     os.makedirs(opt.result_path, exist_ok=True)
 

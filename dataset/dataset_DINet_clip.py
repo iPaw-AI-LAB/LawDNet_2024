@@ -9,9 +9,9 @@ from tqdm import tqdm
 from pathlib import Path
 
 # 导入自定义模块和方法
-from models.Gaussian_blur import Gaussian_bluring
-from utils.data_processing import load_landmark_openface_origin
-from tensor_processing import SmoothMask
+# from models.Gaussian_blur import Gaussian_bluring
+# from utils.data_processing import load_landmark_openface_origin
+# from tensor_processing import SmoothMask
 
 # 预处理和数据加载函数
 def load_reference_frames(folder_path, img_h=416, img_w=320):
@@ -60,6 +60,20 @@ def get_data(json_name,augment_num):
     print('finish loading')
     return data_dic_name_list,data_dic
 
+def display_concatenated_images_and_save(source_clip_list, reference_clip_list, save_path):
+    # Concatenate source clips and their masks horizontally
+    display_source = np.concatenate(source_clip_list, 1)
+    # display_source_mask = np.concatenate(source_clip_mask_list, 1)
+
+    # Concatenate reference clips horizontally for each reference
+    display_references = [np.concatenate([reference_clip_list[i][:, :, j:j+3] for j in range(0, 15, 3)], 1) for i in range(len(reference_clip_list))]
+
+    # Concatenate everything vertically
+    merge_img = np.concatenate([display_source] + display_references, 0)
+
+    # Save the image
+    cv2.imwrite(save_path, (merge_img[:,:,::-1] * 255).astype(np.uint8))
+
 # 数据集类定义
 class DINetDataset(Dataset):
     def __init__(self, path_json, augment_num, mouth_region_size):
@@ -76,8 +90,8 @@ class DINetDataset(Dataset):
         self.data_dic_name_list, self.data_dic = get_data(path_json, augment_num)
         self.img_h = mouth_region_size * 3 // 2 + mouth_region_size // 8
         self.img_w = mouth_region_size + mouth_region_size // 4
-        self.smoothmask = SmoothMask()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.smoothmask = SmoothMask()
+        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
     def __getitem__(self, index):
@@ -125,6 +139,7 @@ class DINetDataset(Dataset):
         # 验证加载的数据有效性
         if not self.check_data_validity(deep_speech_list, (5, 29)):
             print("deep_speech_list 数据无效, path:",video_name)
+            print("source anchor:",source_anchor)
             return self.zero_sample_with_batch()
 
         # 加载参考视频片段
@@ -134,6 +149,12 @@ class DINetDataset(Dataset):
         deep_speech_full = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list'])
         deep_speech_clip = np.stack(deep_speech_list, 0)
         reference_clip = np.stack(reference_clip_list, 0)
+
+
+        # # 验证加载的数据有效性
+        # display_concatenated_images_and_save(source_clip_list, reference_clip_list, f'./check_data_{int(flag.cpu())}.jpg')
+        # ## 暂停 等待输入
+        # input("Press Enter to continue...")
 
         source_clip = torch.from_numpy(source_clip).float().permute(0, 3, 1, 2)
         reference_clip = torch.from_numpy(reference_clip).float().permute(0, 3, 1, 2)

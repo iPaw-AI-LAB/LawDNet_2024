@@ -50,11 +50,11 @@ class DINetTrainingOptions():
         self.training_data_path = "./asserts/training_data"
 
     def parse_args(self,args=None):
-        self.parser.add_argument('--cuda_devices', type=str, default='0,1',
+        self.parser.add_argument('--cuda_devices', type=str, default='0,1,2,3',
                             help='CUDA devices to use (e.g., "0,1,2,3")')
         self.parser.add_argument('--seed', type=int, default=456, help='random seed to use.')
         self.parser.add_argument('--num_workers', type=int, default=8, help='num of workers to use.')
-        self.parser.add_argument('--pin_memory', type=bool, default=True, help='pin memory to use.')
+        self.parser.add_argument('--pin_memory', type=bool, default=False, help='pin memory to use.')
         self.parser.add_argument('--source_channel', type=int, default=3, help='input source image channels')
         self.parser.add_argument('--ref_channel', type=int, default=15, help='input reference image channels')
         self.parser.add_argument('--audio_channel', type=int, default=29, help='input audio channels')
@@ -63,7 +63,7 @@ class DINetTrainingOptions():
         self.parser.add_argument('--train_data', type=str, default=r"{}/training_json.json".format(self.training_data_path),
                             help='path of training json')
         self.parser.add_argument('--batch_size', type=int, default=24, help='training batch size')
-        self.parser.add_argument('--freq_wandb', type=int, default=100, help='上传图片到wandb的频率')
+        self.parser.add_argument('--freq_wandb', type=int, default=150, help='上传图片到wandb的频率')
 
         self.parser.add_argument('--lr_g', type=float, default=0.0001, help='initial learning rate for adam')
         self.parser.add_argument('--lr_dI', type=float, default=0.0001, help='initial learning rate for adam')
@@ -99,8 +99,8 @@ class DINetTrainingOptions():
         self.parser.add_argument('--lambda_img', type=int, default=1, help='图像MSE损失') # added by dengjunli
         self.parser.add_argument('--lambda_g_dI', type=int, default=1, help='dI损失')
         self.parser.add_argument('--lambda_g_dV', type=int, default=1, help='dV损失')
-        self.parser.add_argument('--lambda_edge', type=int, default=0, help='sobel边缘检测损失')
-        self.parser.add_argument('--lambda_content', type=int, default=0.01, help='content loss')
+        # self.parser.add_argument('--lambda_edge', type=int, default=0, help='sobel边缘检测损失')
+        # self.parser.add_argument('--lambda_content', type=int, default=0.01, help='content loss')
    
         # =========================  Discriminator ==========================
         self.parser.add_argument('--D_num_blocks', type=int, default=4, help='num of down blocks in discriminator')

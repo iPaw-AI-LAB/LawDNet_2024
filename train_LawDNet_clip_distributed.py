@@ -13,6 +13,7 @@ from tqdm import tqdm
 import wandb
 import yaml
 import argparse
+import datetime
 import torch.distributed as dist
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -29,7 +30,7 @@ from torch.utils.data import DataLoader
 from dataset.dataset_DINet_clip import DINetDataset
 # from models.Gaussian_blur import Gaussian_bluring
 from tensor_processing import SmoothSqMask
-from models.content_model import AudioContentModel, LipContentModel
+# from models.content_model import AudioContentModel, LipContentModel
 from torch.nn.utils import clip_grad_norm_
 
 
@@ -63,7 +64,7 @@ def load_experiment_config(config_module_path):
     return config_module.experiment_config
 
 # 加载配置和设备设置
-def load_config_and_device(args):
+def load_config_and_device(args, rank):
     # import pdb; pdb.set_trace()
     '''加载配置和设置设备'''
 
@@ -83,14 +84,14 @@ def load_config_and_device(args):
     if rank == 0:
         wandb.config.update(opt)  # 如果使用 wandb，可以这样更新配置
 
-    random.seed(opt.seed)
-    np.random.seed(opt.seed)
-    torch.cuda.manual_seed_all(opt.seed)
-    torch.manual_seed(opt.seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    random.seed(opt.seed + rank)
+    np.random.seed(opt.seed+ rank)
+    torch.cuda.manual_seed_all(opt.seed+rank)
+    torch.manual_seed(opt.seed+rank)
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # 根据实验名称直接修改文件夹名字
     # 分割result_path，最多分割成两部分
@@ -99,7 +100,7 @@ def load_config_and_device(args):
     # 在倒数第一个/之前插入本次实验的名字
     opt.result_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}'
 
-    return opt, device
+    return opt
 
 # Save configuration to a YAML file
 def save_config_to_yaml(config, filename):
@@ -144,6 +145,7 @@ def init_networks(opt,rank):
     # device_ids = [int(x) for x in opt.cuda_devices.split(',')]
 
     # 其它网络没有DDP
+    net_g = convert_model(net_g)
     net_g = DDP(net_g, device_ids=[rank], output_device=rank, find_unused_parameters=True)
     print("net_g is loaded with DDP")
     net_dI = DDP(net_dI, device_ids=[rank], output_device=rank, find_unused_parameters=True)
@@ -205,14 +207,18 @@ def setup_schedulers(optimizer_g, optimizer_dI, optimizer_dV):
     net_dV_scheduler = get_scheduler(optimizer_dV, opt.non_decay, opt.decay)
     return net_g_scheduler, net_dI_scheduler, net_dV_scheduler
 
-def log_to_wandb(source_clip, fake_out):
+def log_to_wandb(source_clip, source_clip_mask, fake_out):
     # source_clip = source_clip.float()  # 将数据转换为全精度
     # fake_out = fake_out.float()        # 同上
 
     # 可视化原始source_clip
     images_source = [wandb.Image(source_clip[i].float().detach().cpu(), caption=f"Source Clip {i}") for i in range(source_clip.shape[0])]
     wandb.log({"Source Clips": images_source})
-    
+
+    # 可视化source_clip_mask
+    images_source_mask = [wandb.Image(source_clip_mask[i].float().detach().cpu(), caption=f"Source Clip Mask {i}") for i in range(source_clip_mask.shape[0])]
+    wandb.log({"Source Clip Masks": images_source_mask})
+
     # 可视化fake_out
     images_fake_out = [wandb.Image(fake_out[i].float().detach().cpu(), caption=f"Fake Out {i}") for i in range(fake_out.shape[0])]
     wandb.log({"Fake Outs": images_fake_out})
@@ -309,11 +315,15 @@ def train(
                 perception_fake_half = net_vgg(fake_out_half)
 
                 # -----------------感知损失计算----------------- #
-                loss_g_perception = sum([criterionL1(perception_fake[i], perception_real[i]) + criterionL1(perception_fake_half[i], perception_real_half[i]) for i in range(len(perception_real))]) / (len(perception_real) * 2)
+                loss_g_perception = 0
+                for i in range(len(perception_real)):
+                    loss_g_perception += criterionL1(perception_fake[i], perception_real[i])
+                    loss_g_perception += criterionL1(perception_fake_half[i], perception_real_half[i])
+                loss_g_perception = (loss_g_perception / (len(perception_real) * 2)) * opt.lamb_perception
 
                 # -----------------GAN损失计算----------------- #
-                loss_g_dI = criterionGAN(pred_fake_dI, True)
-                loss_g_dV = criterionGAN(pred_fake_dV, True)
+                loss_g_dI = criterionGAN(pred_fake_dI, True) * opt.lambda_g_dI
+                loss_g_dV = criterionGAN(pred_fake_dV, True) * opt.lambda_g_dV
 
                 # -----------------唇形同步损失计算----------------- #
                 fake_out_clip = torch.cat(torch.split(fake_out, opt.batch_size, dim=0), 1)
@@ -335,19 +345,19 @@ def train(
                     fake_out_clip_mouth = fake_out_clip_mouth_origin_size
 
                 sync_score = net_lipsync(fake_out_clip_mouth, deep_speech_full)
-                loss_sync = criterionMSE(sync_score, torch.tensor(1.0).expand_as(sync_score).to(device_id))
+                loss_sync = criterionMSE(sync_score, torch.tensor(1.0).expand_as(sync_score).to(device_id)) * opt.lamb_syncnet_perception
 
                 # -----------------MSE损失计算部分----------------- #
-                loss_img = criterionMSE(fake_out, source_clip)
+                loss_img = criterionMSE(fake_out, source_clip) * opt.lambda_img
 
-                loss_g = (loss_img * opt.lambda_img + loss_g_perception * opt.lamb_perception + loss_g_dI * opt.lambda_g_dI + loss_g_dV * opt.lambda_g_dV + loss_sync * opt.lamb_syncnet_perception)
+                loss_g = (loss_img + loss_g_perception + loss_g_dI + loss_g_dV + loss_sync)
             scaler.scale(loss_g).backward()
             scaler.step(optimizer_g)
             scaler.update()
 
             # 记录到WandB
             if rank == 0 and iteration % opt.freq_wandb == 0:
-                log_to_wandb(source_clip, fake_out)
+                log_to_wandb(source_clip, source_clip_mask ,fake_out)
                 wandb.log({
                     "epoch": epoch, 
                     "loss_dI": loss_dI.item(), 
@@ -357,7 +367,8 @@ def train(
                     "loss_g_perception": loss_g_perception.item(), 
                     "loss_g_dI": loss_g_dI.item(), 
                     "loss_g_dV": loss_g_dV.item(), 
-                    "loss_sync": loss_sync.item()
+                    "loss_sync": loss_sync.item(),
+                    "learning_rate_g": optimizer_g.param_groups[0]["lr"],
                 })
                 print(
                     f"Epoch {epoch}, Iteration {iteration}, "
@@ -365,7 +376,8 @@ def train(
                     f"loss_g: {loss_g.item()}, loss_img: {loss_img.item()}, "
                     f"loss_g_perception: {loss_g_perception.item()}, "
                     f"loss_g_dI: {loss_g_dI.item()}, loss_g_dV: {loss_g_dV.item()}, "
-                    f"loss_sync: {loss_sync.item()}"
+                    f"loss_sync: {loss_sync.item()}",
+                    f"learning_rate_g: {optimizer_g.param_groups[0]['lr']}"
                 )
 
         # 更新学习率
@@ -373,7 +385,7 @@ def train(
         update_learning_rate(net_dI_scheduler, optimizer_dI)
         update_learning_rate(net_dV_scheduler, optimizer_dV)
 
-        dist.barrier()
+        # dist.barrier()
 
 
         if rank == 0:
@@ -420,7 +432,7 @@ if __name__ == "__main__":
     # 添加主节点端口参数
     config_parser.add_argument('--master_port', type=str, default='12355', help="Port of the master node for distributed training.")
     
-    dist.init_process_group("nccl")
+    dist.init_process_group("nccl",timeout=datetime.timedelta(minutes=30))
     rank = dist.get_rank()
     world_size = dist.get_world_size()
 
@@ -430,7 +442,7 @@ if __name__ == "__main__":
     # import pdb; pdb.set_trace()
     init_wandb(args.name, rank)
 
-    opt, device = load_config_and_device(args)
+    opt = load_config_and_device(args, rank)
 
     os.makedirs(opt.result_path, exist_ok=True)
 
