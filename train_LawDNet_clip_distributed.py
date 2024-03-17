@@ -127,7 +127,7 @@ def load_training_data(opt, world_size, rank):
 def init_networks(opt,rank):
 
     net_g = LawDNet(opt.source_channel, opt.ref_channel, opt.audio_channel, 
-                    opt.warp_layer_num, opt.num_kpoints, opt.coarse_grid_size).to(rank)
+                    opt.warp_layer_num, opt.num_kpoints, opt.coarse_grid_size, rank).to(rank)
     net_dI = Discriminator(opt.source_channel, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).to(rank)
     net_dV = Discriminator(opt.source_channel * 5, opt.D_block_expansion, opt.D_num_blocks, opt.D_max_features).to(rank)
     net_vgg = Vgg19().to(rank)
@@ -248,6 +248,14 @@ def train(
     criterionL1 = criterionL1.to(device_id)
     # criterionCosine = criterionCosine.to(device_id)
 
+    # 假定mouth_region_size定义了唇部区域的大小，并在train_data中已正确设置
+    mouth_region_size = opt.mouth_region_size
+    radius = mouth_region_size // 2
+    radius_1_4 = radius // 4
+
+    # 计算口部区域的起始和结束索引
+    start_x, start_y = radius, radius_1_4
+    end_x, end_y = start_x + mouth_region_size, start_y + mouth_region_size
 
     # 混合精度训练：Creates a GradScaler once at the beginning of training.
     
@@ -283,7 +291,7 @@ def train(
             # 更新判别器DI
             optimizer_dI.zero_grad()
             with autocast(enabled=True):
-                _, pred_fake_dI = net_dI(fake_out.detach())
+                _, pred_fake_dI = net_dI(fake_out)
                 loss_dI_fake = criterionGAN(pred_fake_dI, False)
                 _, pred_real_dI = net_dI(source_clip)
                 loss_dI_real = criterionGAN(pred_real_dI, True)
@@ -293,8 +301,9 @@ def train(
 
             # 更新判别器DV
             optimizer_dV.zero_grad()
+            condition_fake_dV = torch.cat(torch.split(fake_out, opt.batch_size, dim=0), 1)
+
             with autocast(enabled=True):
-                condition_fake_dV = torch.cat(torch.split(fake_out.detach(), opt.batch_size, dim=0), 1)
                 _, pred_fake_dV = net_dV(condition_fake_dV)
                 loss_dV_fake = criterionGAN(pred_fake_dV, False)
                 condition_real_dV = torch.cat(torch.split(source_clip, opt.batch_size, dim=0), 1)
@@ -327,14 +336,6 @@ def train(
 
                 # -----------------唇形同步损失计算----------------- #
                 fake_out_clip = torch.cat(torch.split(fake_out, opt.batch_size, dim=0), 1)
-                # 假定mouth_region_size定义了唇部区域的大小，并在train_data中已正确设置
-                mouth_region_size = opt.mouth_region_size
-                radius = mouth_region_size // 2
-                radius_1_4 = radius // 4
-
-                # 计算口部区域的起始和结束索引
-                start_x, start_y = radius, radius_1_4
-                end_x, end_y = start_x + mouth_region_size, start_y + mouth_region_size
 
                 fake_out_clip_mouth_origin_size = fake_out_clip[:, :, start_x:end_x, start_y:end_y]
 
@@ -390,11 +391,11 @@ def train(
 
         if rank == 0:
             # 保存和加载模型的代码
-            if epoch % opt.checkpoint == 0:
+            if epoch % opt.checkpoint == 0 or epoch == opt.non_decay + opt.decay:
                 save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI, optimizer_dV)
             if epoch == 1:
                 config_dict = vars(opt)
-                config_out_path = os.path.join(opt.result_path, f'config_{time.strftime("%Y-%m-%d-%H-%M-%S")}.yaml')
+                config_out_path = os.path.join(opt.result_path, f'config_{args.name}.yaml')
                 save_config_to_yaml(config_dict, config_out_path)
 
 # 检查点保存

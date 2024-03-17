@@ -267,7 +267,7 @@ def train(
             # Update discriminator DI
             optimizer_dI.zero_grad()
             with autocast(enabled=True):
-                _, pred_fake_dI = net_dI(fake_out.detach())
+                _, pred_fake_dI = net_dI(fake_out)
                 loss_dI_fake = criterionGAN(pred_fake_dI, False)
                 _, pred_real_dI = net_dI(source_image_data)
                 loss_dI_real = criterionGAN(pred_real_dI, True)
@@ -276,9 +276,10 @@ def train(
             scaler.step(optimizer_dI)
 
             # Update generator G
-            optimizer_g.zero_grad()
+            
             with autocast(enabled=True):
                 _, pred_fake_dI = net_dI(fake_out)
+                optimizer_g.zero_grad()
                 perception_real = net_vgg(source_image_data)
                 perception_fake = net_vgg(fake_out)
                 perception_real_half = net_vgg(source_image_half)
@@ -328,7 +329,7 @@ def train(
         # 只在主进程中记录到WandB
         if rank == 0 :
             # Save checkpoint
-            if epoch % opt.checkpoint == 0:
+            if epoch % opt.checkpoint == 0 or epoch == opt.non_decay + opt.decay:
                 save_checkpoint(epoch, opt, net_g, net_dI, optimizer_g, optimizer_dI)
             if epoch == 1:
                 config_dict = vars(opt)

@@ -10,23 +10,17 @@ def standard_grid(size,batch_size=1,device='cuda'):
     but more efficient and flexible
 
     size: (H,W) or (D,H,W)
-
     return: (B,H,W,2) or (B,D,H,W,3)
-
     """
 
     dim = len(size)
-
     axis = []
     for i in size:
         tmp = torch.linspace(-1+1/i, 1-1/i, i, device=device)
-        
         axis.append(tmp)
     
     grid = torch.stack(torch.meshgrid(axis), dim=-1)
-
     grid = torch.flip(grid, dims=[-1]).contiguous()
-
     batch_grid = grid.unsqueeze(0).repeat((batch_size,)+(1,)*(dim+1))
 
     return batch_grid
