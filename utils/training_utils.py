@@ -24,7 +24,8 @@ def get_scheduler(optimizer, niter,niter_decay,lr_policy='lambda',lr_decay_iters
 def update_learning_rate(scheduler, optimizer):
     scheduler.step()
     lr = optimizer.param_groups[0]['lr']
-    # print('learning rate = %.7f' % lr)
+    print('learning rate = %.7f' % lr)
+
 
 class GANLoss(nn.Module):
     '''

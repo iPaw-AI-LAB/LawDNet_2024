@@ -163,34 +163,78 @@ def setup_optimizers(net_g, net_dI, net_dV):
     return optimizer_g, optimizer_dI, optimizer_dV
 
 
-def load_pretrained_weights(net_g, opt, args):
+def load_pretrained_weights(net_g, 
+                            net_dI, 
+                            net_dV, 
+                            optimizer_g, 
+                            optimizer_dI, 
+                            optimizer_dV,
+                            scheduler_g,
+                            scheduler_dI,
+                            scheduler_dV,
+                            opt, 
+                            args):
     """
-    Loads the pretrained weights into the model if a valid path is provided.
+    Loads the pretrained weights into the models and optimizers if a valid path is provided and
+    depending on the resume option, it either loads all weights or only the generator weights.
 
     Parameters:
-    - net_g: the model into which the weights will be loaded.
-    - opt: options object that contains the path to the pretrained weights.
-
+    - net_g, net_dI, net_dV: models to load the weights into.
+    - optimizer_g, optimizer_dI, optimizer_dV: optimizers to load the states into.
+    - opt: options object that contains the path to the pretrained weights and the resume flag.
+    - args: additional arguments, might be used to modify the path dynamically.
+    
     Returns:
     - A boolean value indicating whether the weights were loaded successfully.
     """
-
+    
     if opt.pretrained_frame_DINet_path:
         path_parts = opt.pretrained_frame_DINet_path.rsplit('/', 2)
-        # 在倒数第2个/之前插入本次实验的名字
-        opt.pretrained_frame_DINet_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}/{path_parts[2]}'
+        modified_path = f'{path_parts[0]}/{args.name}/{path_parts[1]}/{path_parts[2]}'
         try:
-            print(f'Loading frame trained DINet weight from: {opt.pretrained_frame_DINet_path}')
-            checkpoint = torch.load(opt.pretrained_frame_DINet_path)
+            print(f'Loading pretrained weights from: {modified_path}')
+            checkpoint = torch.load(modified_path)
+            
+            # Always load state_dict for net_g for coarse to fine training
             net_g.load_state_dict(checkpoint['state_dict']['net_g'])
-            print('Loading frame trained DINet weight finished!')
+            
+            if opt.resume:
+                print('resume training, Loading all weights and optimizers')
+                # If resuming, load state_dicts for net_dI and net_dV, and all optimizers
+                net_dI.load_state_dict(checkpoint['state_dict']['net_dI'])
+                net_dV.load_state_dict(checkpoint['state_dict']['net_dV'])
+                optimizer_g.load_state_dict(checkpoint['optimizer']['net_g'])
+                optimizer_dI.load_state_dict(checkpoint['optimizer']['net_dI'])
+                optimizer_dV.load_state_dict(checkpoint['optimizer']['net_dV'])
+                # Load scheduler states
+                if 'scheduler' in checkpoint:
+                    scheduler_g.load_state_dict(checkpoint['scheduler']['net_g'])
+                    scheduler_dI.load_state_dict(checkpoint['scheduler']['net_dI'])
+                    scheduler_dV.load_state_dict(checkpoint['scheduler']['net_dV'])
+
+                # Optionally, load the epoch number to resume training correctly
+                opt.start_epoch = checkpoint['epoch']
+
+                # # Manually set the learning rate for each optimizer
+                # new_lr = 0.000004878
+                # for param_group in optimizer_g.param_groups:
+                #     param_group['lr'] = new_lr
+                # for param_group in optimizer_dI.param_groups:
+                #     param_group['lr'] = new_lr
+                # for param_group in optimizer_dV.param_groups:
+                #     param_group['lr'] = new_lr
+
+                # print(f'仅供测试！！！Set learning rate to {new_lr} for all optimizers.')
+            
+            print('Loading pretrained weights finished!')
             return True
         except Exception as e:
             print(f'Error loading pretrained weights: {e}')
             return False
     else:
-        print("Path to pretrained frame trained DINet weight is empty.")
+        print("Path to pretrained weights is empty.")
         return False
+
     
 # 设置损失函数
 def setup_criterion():
@@ -266,7 +310,7 @@ def train(
     for epoch in range(opt.start_epoch, opt.non_decay + opt.decay + 1):
         train_sampler.set_epoch(epoch)
         net_g.train()
-        for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
+        for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch} of {opt.non_decay + opt.decay}")):
             source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag = data
             flag = flag.to(device_id)
             # 检查是否有脏数据
@@ -392,17 +436,27 @@ def train(
         if rank == 0:
             # 保存和加载模型的代码
             if epoch % opt.checkpoint == 0 or epoch == opt.non_decay + opt.decay:
-                save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI, optimizer_dV)
+                save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI, optimizer_dV, net_g_scheduler, net_dI_scheduler, net_dV_scheduler)
             if epoch == 1:
                 config_dict = vars(opt)
                 config_out_path = os.path.join(opt.result_path, f'config_{args.name}.yaml')
                 save_config_to_yaml(config_dict, config_out_path)
 
 # 检查点保存
-def save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI, optimizer_dV):
-    model_out_path = os.path.join(opt.result_path, f'netG_model_epoch_{epoch}.pth')
+def save_checkpoint(epoch, 
+                    opt, 
+                    net_g, 
+                    net_dI, 
+                    net_dV, 
+                    optimizer_g, 
+                    optimizer_dI, 
+                    optimizer_dV, 
+                    scheduler_g, 
+                    scheduler_dI, 
+                    scheduler_dV):
+    model_out_path = os.path.join(opt.result_path, f'checkpoint_epoch_{epoch}.pth')
     states = {
-        'epoch': epoch + 1,
+        'epoch': epoch,
         'state_dict': {
             'net_g': net_g.state_dict(),
             'net_dI': net_dI.state_dict(),
@@ -412,10 +466,16 @@ def save_checkpoint(epoch, opt, net_g, net_dI, net_dV, optimizer_g, optimizer_dI
             'net_g': optimizer_g.state_dict(),
             'net_dI': optimizer_dI.state_dict(),
             'net_dV': optimizer_dV.state_dict()
+        },
+        'scheduler': {
+            'net_g': scheduler_g.state_dict(),
+            'net_dI': scheduler_dI.state_dict(),
+            'net_dV': scheduler_dV.state_dict()
         }
     }
     torch.save(states, model_out_path)
     print(f"Checkpoint saved to {model_out_path}")
+
 
 
 def cleanup():
@@ -453,11 +513,11 @@ if __name__ == "__main__":
 
     optimizer_g, optimizer_dI, optimizer_dV = setup_optimizers(net_g, net_dI, net_dV)
 
-    load_pretrained_weights(net_g, opt, args)
+    net_g_scheduler, net_dI_scheduler, net_dV_scheduler = setup_schedulers(optimizer_g, optimizer_dI, optimizer_dV)
 
     criterionGAN, criterionL1, criterionMSE = setup_criterion()
 
-    net_g_scheduler, net_dI_scheduler, net_dV_scheduler = setup_schedulers(optimizer_g, optimizer_dI, optimizer_dV)
+    load_pretrained_weights(net_g, net_dI, net_dV, optimizer_g, optimizer_dI, optimizer_dV, net_g_scheduler, net_dI_scheduler, net_dV_scheduler, opt, args)
 
     train(
         opt, 

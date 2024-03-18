@@ -64,6 +64,8 @@ class DINetTrainingOptions():
                             help='path of training json')
         self.parser.add_argument('--batch_size', type=int, default=24, help='training batch size')
         self.parser.add_argument('--freq_wandb', type=int, default=150, help='上传图片到wandb的频率')
+        # 是否断点续训，默认不是
+        self.parser.add_argument('--resume', action='store_true', help='If true, resume training from last checkpoint.')
 
         self.parser.add_argument('--lr_g', type=float, default=0.0001, help='initial learning rate for adam')
         self.parser.add_argument('--lr_dI', type=float, default=0.0001, help='initial learning rate for adam')
