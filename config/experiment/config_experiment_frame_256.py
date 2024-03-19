@@ -8,5 +8,5 @@ experiment_config = {
     'coarse_model_path': './output/training_model_weight/frame_training_128/netG_model_epoch_4.pth',# 会自动根据实验名字添加子文件夹
     'result_path': './output/training_model_weight/frame_training_256', # 会自动根据实验名字添加子文件夹
     'non_decay': 2,
-    'decay': 2
+    'decay': 3
 }

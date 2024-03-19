@@ -4,6 +4,7 @@ import numpy as np
 import os
 import torch.nn.functional as F
 import torch
+import datetime
 import torch.nn as nn
 import torch.optim as optim
 from torch.cuda.amp import autocast as autocast
@@ -241,7 +242,7 @@ def train(
     scaler = torch.cuda.amp.GradScaler(enabled=True)
 
     # 添加rank参数
-    for epoch in range(opt.start_epoch, opt.non_decay + opt.decay):
+    for epoch in range(opt.start_epoch, opt.non_decay + opt.decay + 1):
         # 设置DistributedSampler
         train_sampler.set_epoch(epoch)
         net_g.train()
@@ -380,7 +381,7 @@ if __name__ == "__main__":
     # print(f"Master Addr: {args.master_addr}, Master Port: {args.master_port}")
     # setup(rank, world_size, master_addr=args.master_addr, master_port=args.master_port)
     # print(f"Rank {rank} initialized.")
-    dist.init_process_group("nccl")
+    dist.init_process_group("nccl",timeout=datetime.timedelta(minutes=30))
     rank = dist.get_rank()
     world_size = dist.get_world_size()
 
