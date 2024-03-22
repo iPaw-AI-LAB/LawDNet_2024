@@ -1,3 +1,7 @@
+'''
+本文件用于从DeepSpeech特征中选择最佳帧作为固定嘴型的参考帧
+'''
+
 from tqdm import tqdm
 import numpy as np
 import shutil
@@ -48,8 +52,9 @@ def process_dataset(txt_path, dataset_name):
             if os.path.exists(source_image_path):
                 shutil.copy(source_image_path, target_image_path)
 
-# 遍历deepspeech文件夹处理所有数据集
-txt_files = glob.glob(f'{deepspeech_path}/*.txt')
-for txt_file in tqdm(txt_files, desc='Overall Progress'):
-    dataset_name = os.path.basename(txt_file).replace('_deepspeech.txt', '')
-    process_dataset(txt_file, dataset_name)
+# 遍历deepspeech文件夹处理所有数据集, 保存固定嘴型的最佳帧
+if __name__ == '__main__':
+    txt_files = glob.glob(f'{deepspeech_path}/*.txt')
+    for txt_file in tqdm(txt_files, desc='Overall Progress'):
+        dataset_name = os.path.basename(txt_file).replace('_deepspeech.txt', '')
+        process_dataset(txt_file, dataset_name)

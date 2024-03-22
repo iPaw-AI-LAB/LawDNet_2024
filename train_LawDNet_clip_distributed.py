@@ -214,21 +214,10 @@ def load_pretrained_weights(net_g,
 
                 # Optionally, load the epoch number to resume training correctly
                 opt.start_epoch = checkpoint['epoch']
-
-                # # Manually set the learning rate for each optimizer
-                # new_lr = 0.000004878
-                # for param_group in optimizer_g.param_groups:
-                #     param_group['lr'] = new_lr
-                # for param_group in optimizer_dI.param_groups:
-                #     param_group['lr'] = new_lr
-                # for param_group in optimizer_dV.param_groups:
-                #     param_group['lr'] = new_lr
-
-                # print(f'仅供测试！！！Set learning rate to {new_lr} for all optimizers.')
-            
             print('Loading pretrained weights finished!')
             return True
         except Exception as e:
+            sys.exit(1)
             print(f'Error loading pretrained weights: {e}')
             return False
     else:
@@ -456,7 +445,7 @@ def save_checkpoint(epoch,
                     scheduler_dV):
     model_out_path = os.path.join(opt.result_path, f'checkpoint_epoch_{epoch}.pth')
     states = {
-        'epoch': epoch,
+        'epoch': epoch+1,
         'state_dict': {
             'net_g': net_g.state_dict(),
             'net_dI': net_dI.state_dict(),

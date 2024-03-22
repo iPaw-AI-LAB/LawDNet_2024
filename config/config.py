@@ -53,7 +53,7 @@ class DINetTrainingOptions():
         self.parser.add_argument('--cuda_devices', type=str, default='0,1,2,3',
                             help='CUDA devices to use (e.g., "0,1,2,3")')
         self.parser.add_argument('--seed', type=int, default=456, help='random seed to use.')
-        self.parser.add_argument('--num_workers', type=int, default=0, help='num of workers to use.')
+        self.parser.add_argument('--num_workers', type=int, default=8, help='num of workers to use.')
         self.parser.add_argument('--pin_memory', type=bool, default=False, help='pin memory to use.')
         self.parser.add_argument('--source_channel', type=int, default=3, help='input source image channels')
         self.parser.add_argument('--ref_channel', type=int, default=15, help='input reference image channels')
@@ -67,6 +67,7 @@ class DINetTrainingOptions():
         # 是否断点续训，默认不是
         self.parser.add_argument('--resume', action='store_true', help='If true, resume training from last checkpoint.')
 
+        # print("学习率原本是0.0001","为了本次实验-已经更改")
         self.parser.add_argument('--lr_g', type=float, default=0.0001, help='initial learning rate for adam')
         self.parser.add_argument('--lr_dI', type=float, default=0.0001, help='initial learning rate for adam')
         
