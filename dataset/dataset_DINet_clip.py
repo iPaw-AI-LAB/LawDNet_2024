@@ -14,7 +14,7 @@ from pathlib import Path
 # from tensor_processing import SmoothMask
 
 # 预处理和数据加载函数
-def load_reference_frames(folder_path, img_h=416, img_w=320):
+def load_selected_reference_frames(folder_path, img_h=416, img_w=320):
     """
     在给定的文件夹路径中随机选取以'p', 's', 'e', 'f', 'w'开头的jpg文件各一张，
     读取它们为参考帧，并返回处理后的参考帧列表。
@@ -38,8 +38,11 @@ def load_reference_frames(folder_path, img_h=416, img_w=320):
             if reference_frame_data.shape != (img_h, img_w, 3):
                 reference_frame_data = cv2.resize(reference_frame_data, (img_w, img_h))
             reference_frame_list.append(reference_frame_data)
+        else:
+            print(f'No file found for character {char} in folder {folder_path}')
+            return []
     
-    return reference_frame_list
+    return reference_frame_list # 5个参考帧的list, 每个参考帧的shape为(416, 320, 3)
 
 def get_data(json_name,augment_num):
     """
@@ -92,6 +95,7 @@ class DINetDataset(Dataset):
         self.img_w = mouth_region_size + mouth_region_size // 4
         # self.smoothmask = SmoothMask()
         # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.selected_reference_frame = True
 
 
     def __getitem__(self, index):
@@ -142,24 +146,41 @@ class DINetDataset(Dataset):
             print("source anchor:",source_anchor)
             return self.zero_sample_with_batch()
 
-        # 加载参考视频片段
-        reference_clip_list = self.load_reference_clips(video_name, video_clip_num)
+        # 如果使用固定口型参考帧
+        if self.selected_reference_frame:
+            for _ in range(5):
+                reference_frame_list = load_selected_reference_frames( 
+                            f'./asserts/training_data/split_video_25fps_crop_face/{video_name}', self.img_h, self.img_w) # 5个参考帧的list, 每个参考帧的shape为(h, w, 3)
+                if len(reference_frame_list) < 5:
+                    # 如果参考帧数量不足5张，数据不完整，返回零样本
+                    print("固定口型的参考帧数量不足5张，数据不完整，返回零样本")
+                    return self.zero_sample_with_batch()
+                # 拼接参考帧
+                reference_clip_list.append(np.concatenate(reference_frame_list, axis=2))  # 沿RGB通道拼接
+        else:
+            # 加载随机参考帧
+            reference_clip_list = self.load_reference_clips(video_name, video_clip_num)
 
-        source_clip = np.stack(source_clip_list, 0)
-        deep_speech_full = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list'])
-        deep_speech_clip = np.stack(deep_speech_list, 0)
-        reference_clip = np.stack(reference_clip_list, 0)
+        source_clip = np.stack(source_clip_list, 0) # source_clip shape: (5, 468, 360, 3)
+        deep_speech_full = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list']) # deep_speech_full shape: (9, 29)
+        deep_speech_clip = np.stack(deep_speech_list, 0) # deep_speech_clip shape: (5, 5, 29)
+        reference_clip = np.stack(reference_clip_list, 0) # reference_clip shape: (5, 468, 360, 15)
 
+        # import pdb; pdb.set_trace()
+        # print("source_clip shape:",source_clip.shape)
+        # print("deep_speech_clip shape:",deep_speech_clip.shape)
+        # print("deep_speech_full shape:",deep_speech_full.shape)
+        # print("reference_clip shape:",reference_clip.shape)
 
         # # 验证加载的数据有效性
         # display_concatenated_images_and_save(source_clip_list, reference_clip_list, f'./check_data_{int(flag.cpu())}.jpg')
         # ## 暂停 等待输入
         # input("Press Enter to continue...")
 
-        source_clip = torch.from_numpy(source_clip).float().permute(0, 3, 1, 2)
-        reference_clip = torch.from_numpy(reference_clip).float().permute(0, 3, 1, 2)
-        deep_speech_clip = torch.from_numpy(deep_speech_clip).float().permute(0, 2, 1)
-        deep_speech_full = torch.from_numpy(deep_speech_full).permute(1, 0) 
+        source_clip = torch.from_numpy(source_clip).float().permute(0, 3, 1, 2) # source_clip shape: (5, 3, 468, 360)
+        reference_clip = torch.from_numpy(reference_clip).float().permute(0, 3, 1, 2) # reference_clip shape: (5, 15, 468, 360)
+        deep_speech_clip = torch.from_numpy(deep_speech_clip).float().permute(0, 2, 1) # deep_speech_clip shape: (5, 29, 5)
+        deep_speech_full = torch.from_numpy(deep_speech_full).permute(1, 0) # deep_speech_full shape: (29, 9)
 
         return source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag
 
@@ -197,7 +218,7 @@ class DINetDataset(Dataset):
         """
         reference_clip_list = []
 
-        for _ in range(5):  # 假设需要5个参考帧
+        for _ in range(5):  # 假设需要5个source_image, 每个source_image有5个参考帧
             reference_anchor_list = random.sample(range(video_clip_num), 5)
             reference_frame_list = []
 
@@ -215,16 +236,17 @@ class DINetDataset(Dataset):
                     return self.zero_sample_with_batch()
 
                 reference_frame_data = self.preprocess_image_data(reference_frame_path)
-                reference_frame_list.append(reference_frame_data)
+                reference_frame_list.append(reference_frame_data) # 5个参考帧的list, 每个参考帧的shape为(468, 360, 3)
 
             # 验证参考帧数据有效性
             if not self.check_data_validity(reference_frame_list, (self.img_h, self.img_w, 3)):
                 print("参考帧数据无效, path:",video_name)
                 return self.zero_sample_with_batch()
 
+            # import pdb; pdb.set_trace()
             reference_clip_list.append(np.concatenate(reference_frame_list, axis=2))  # 沿宽度方向拼接
-
-        return reference_clip_list
+            
+        return reference_clip_list # 5个source_image的参考帧的list, 每个source_image参考帧的shape为(468, 360, 15)
 
     def check_data_validity(self, data_list, expected_shape):
         """
