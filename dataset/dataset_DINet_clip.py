@@ -95,7 +95,7 @@ class DINetDataset(Dataset):
         self.img_w = mouth_region_size + mouth_region_size // 4
         # self.smoothmask = SmoothMask()
         # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.selected_reference_frame = True
+        self.selected_reference_frame = False
 
 
     def __getitem__(self, index):

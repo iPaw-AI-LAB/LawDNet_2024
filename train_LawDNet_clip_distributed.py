@@ -217,6 +217,7 @@ def load_pretrained_weights(net_g,
             print('Loading pretrained weights finished!')
             return True
         except Exception as e:
+            print(f'Error loading pretrained weights: {e}')
             sys.exit(1)
             print(f'Error loading pretrained weights: {e}')
             return False
@@ -324,12 +325,14 @@ def train(
             # 更新判别器DI
             optimizer_dI.zero_grad()
             with autocast(enabled=True):
-                _, pred_fake_dI = net_dI(fake_out)
+                # _, pred_fake_dI = net_dI(fake_out)
+                _, pred_fake_dI = net_dI(fake_out.detach())
                 loss_dI_fake = criterionGAN(pred_fake_dI, False)
                 _, pred_real_dI = net_dI(source_clip)
                 loss_dI_real = criterionGAN(pred_real_dI, True)
                 loss_dI = (loss_dI_fake + loss_dI_real) * 0.5
-            scaler.scale(loss_dI).backward(retain_graph=True)
+            # scaler.scale(loss_dI).backward(retain_graph=True)
+            scaler.scale(loss_dI).backward()
             scaler.step(optimizer_dI)
 
             # 更新判别器DV
@@ -337,13 +340,15 @@ def train(
             condition_fake_dV = torch.cat(torch.split(fake_out, opt.batch_size, dim=0), 1)
 
             with autocast(enabled=True):
-                _, pred_fake_dV = net_dV(condition_fake_dV)
+                # _, pred_fake_dV = net_dV(condition_fake_dV)
+                _, pred_fake_dV = net_dV(condition_fake_dV.detach())
                 loss_dV_fake = criterionGAN(pred_fake_dV, False)
                 condition_real_dV = torch.cat(torch.split(source_clip, opt.batch_size, dim=0), 1)
                 _, pred_real_dV = net_dV(condition_real_dV)
                 loss_dV_real = criterionGAN(pred_real_dV, True)
                 loss_dV = (loss_dV_fake + loss_dV_real) * 0.5
-            scaler.scale(loss_dV).backward(retain_graph=True)
+            # scaler.scale(loss_dV).backward(retain_graph=True)
+            scaler.scale(loss_dV).backward()
             scaler.step(optimizer_dV)
 
             # 更新生成器

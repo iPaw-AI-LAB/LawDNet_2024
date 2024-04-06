@@ -10,6 +10,7 @@ results/
 incremental_results/
 wandb/
 asserts/
+Exp-of-Junli/wav2vec2-xls-r-300m-timit-phoneme/
 
 
 *.pth
