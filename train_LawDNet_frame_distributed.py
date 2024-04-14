@@ -246,7 +246,7 @@ def train(
         # 设置DistributedSampler
         train_sampler.set_epoch(epoch)
         net_g.train()
-        for iteration, (source_image_data, reference_clip_data, deepspeech_feature, flag) in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch}")):
+        for iteration, (source_image_data, reference_clip_data, deepspeech_feature, flag) in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch} / {opt.non_decay + opt.decay}")):
             flag = flag.to(device_id)
             if not (flag.equal(torch.ones(opt.batch_size, 1, device=device_id))):
                 print("Skipping batch with dirty data")
@@ -268,12 +268,12 @@ def train(
             # Update discriminator DI
             optimizer_dI.zero_grad()
             with autocast(enabled=True):
-                _, pred_fake_dI = net_dI(fake_out)
+                _, pred_fake_dI = net_dI(fake_out.detach())
                 loss_dI_fake = criterionGAN(pred_fake_dI, False)
                 _, pred_real_dI = net_dI(source_image_data)
                 loss_dI_real = criterionGAN(pred_real_dI, True)
                 loss_dI = (loss_dI_fake + loss_dI_real) * 0.5
-            scaler.scale(loss_dI).backward(retain_graph=True)
+            scaler.scale(loss_dI).backward()
             scaler.step(optimizer_dI)
 
             # Update generator G
@@ -381,7 +381,7 @@ if __name__ == "__main__":
     # print(f"Master Addr: {args.master_addr}, Master Port: {args.master_port}")
     # setup(rank, world_size, master_addr=args.master_addr, master_port=args.master_port)
     # print(f"Rank {rank} initialized.")
-    dist.init_process_group("nccl",timeout=datetime.timedelta(minutes=30))
+    dist.init_process_group("nccl", timeout=datetime.timedelta(minutes=30))
     rank = dist.get_rank()
     world_size = dist.get_world_size()
 
