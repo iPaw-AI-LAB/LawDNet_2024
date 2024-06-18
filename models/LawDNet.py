@@ -1,7 +1,7 @@
 '''
 加上cross attention版本的LawDNet
 '''
-
+import sys
 import torch
 import cv2
 from torch import nn
@@ -12,57 +12,15 @@ from sync_batchnorm import SynchronizedBatchNorm2d as BatchNorm2d
 from sync_batchnorm import SynchronizedBatchNorm1d as BatchNorm1d
 from torch.cuda.amp import autocast as autocast
 import torchvision.transforms as transforms
-import sys
+
+# from CrossAttention import ModifiedCrossAttention, FlattenAndLinear, adjust_audio_features
+from .CrossAttention import ImprovedCrossAttentionModel
+
+
 sys.path.append("..")
 from torch_affine_ops import standard_grid
 import matplotlib.pyplot as plt
 # from tensor_processing import save_feature_map
-
-class FlattenAndLinear(nn.Module):
-    def __init__(self, input_channels, output_channels, height, width):
-        super(FlattenAndLinear, self).__init__()
-        self.flatten = nn.Flatten()
-        self.fc = nn.Linear(input_channels * height * width, output_channels)
-
-    def forward(self, x):
-        x = self.flatten(x)  # Flatten the dimensions except for the batch dimension
-        x = self.fc(x)       # Transform features to desired output channels
-        return x
-
-class CrossModalAttention(nn.Module):
-    def __init__(self, embed_dim, num_heads):
-        super(CrossModalAttention, self).__init__()
-        self.attn = nn.MultiheadAttention(embed_dim, num_heads)
-
-    def forward(self, query, key, value):
-        # 应用交叉注意力
-        height, width = query.shape[2], query.shape[3]
-        query = query.view(query.shape[0], query.shape[1], -1)
-        key = key.view(key.shape[0], key.shape[1], -1)
-        value = value.view(value.shape[0], value.shape[1], -1)
-        attn_output, _ = self.attn(query, key, value)
-        # 通常在注意力输出后接一个前馈网络，这里我们直接返回注意力输出
-        return attn_output.view(attn_output.shape[0], attn_output.shape[1], height, width)
-
-# 以下代码段是在原始的 forward 方法中使用 CrossModalAttention 的示例
-# 假设 self.cross_modal_attention 是 CrossModalAttention 的一个实例
-
-def adjust_audio_features(audio_features, target_shape):
-    """
-    Adjust the shape of audio features to match the target shape.
-    This example repeats the audio features; actual implementations might vary.
-    
-    :param audio_features: Tensor of shape [5*batch_size, audio_channel, 2]
-    :param target_shape: The desired shape to match, excluding batch size and channels.
-    :return: Adjusted audio features with the shape [5*batch_size, audio_channel, *target_shape]
-    """
-    # Repeat the audio features to match the spatial dimensions of the image features
-    # Note: This is a simplified approach
-
-    batch_size, channels, num_features = audio_features.size()
-    repeated_audio = audio_features.repeat(1, 1, (target_shape[0] * target_shape[1]) // num_features )
-    adjusted_audio = repeated_audio.view(batch_size, channels, target_shape[0] , target_shape[1])
-    return adjusted_audio
 
 
 class LocalAffineWarp(nn.Module):
@@ -412,9 +370,11 @@ class LawDNet(nn.Module):
         self.global_avg2d = nn.AdaptiveAvgPool2d(1)
         self.global_avg1d = nn.AdaptiveAvgPool1d(1)
 
-        self.cross_modal_attention = CrossModalAttention(48, num_heads=4)
+        # self.cross_modal_attention = CrossModalAttention(48, num_heads=4)
 
-        self.flatten_and_linear = FlattenAndLinear(input_channels=128, output_channels=256, height=8, width=6)
+        # self.flatten_and_linear = FlattenAndLinear(input_channels=128, output_channels=256, height=8, width=6)
+        self.cross_attention = ImprovedCrossAttentionModel()
+
 
     # 混合精度训练
     # @autocast()
@@ -442,13 +402,15 @@ class LawDNet(nn.Module):
             if img_para.shape[2] != 8 or img_para.shape[3] != 6:
                 img_para = F.interpolate(img_para, size=(8, 6), mode='bilinear', align_corners=True)
 
-            adjusted_audio_features = adjust_audio_features(audio_para, (img_para.shape[2], img_para.shape[3])) # 5 128 2 -> 5 128 7 5
+            # adjusted_audio_features = adjust_audio_features(audio_para, (img_para.shape[2], img_para.shape[3])) # 5 128 2 -> 5 128 7 5
 
-            # 现在我们可以使用调整后的音频特征和图像特征进行跨模态注意力计算
-            trans_para = self.cross_modal_attention(adjusted_audio_features, img_para, img_para) # 5*batchsize 128 7 5
+            # # 现在我们可以使用调整后的音频特征和图像特征进行跨模态注意力计算
+            # trans_para = self.cross_modal_attention(adjusted_audio_features, img_para, img_para) # 5*batchsize 128 7 5
 
-            # to 5*batchsize 256
-            trans_para = self.flatten_and_linear(trans_para)
+            # # to 5*batchsize 256
+            # trans_para = self.flatten_and_linear(trans_para)
+
+            trans_para = self.cross_attention(img_para, audio_para) # 5*batchsize 256
 
             ## use Law Layer to do local affine warping
             merge_feature_list = [source_in_feature]

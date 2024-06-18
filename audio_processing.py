@@ -5,6 +5,7 @@ from utils.deep_speech import DeepSpeech
 import wave
 from timeit import default_timer as timer
 import sys
+from tqdm import tqdm
 
 def extract_deepspeech(driving_audio_path,deepspeech_model_path):
     '''
@@ -27,7 +28,7 @@ def extract_deepspeech(driving_audio_path,deepspeech_model_path):
 
 
     deepspeech_tensor_all = torch.zeros(ds_feature.shape[0], ds_feature.shape[1], 5).cuda()
-    for i in range(ds_feature.shape[0]):
+    for i in tqdm(range(ds_feature.shape[0]), desc='Processing Audio batches'):
         deepspeech_tensor = torch.from_numpy(ds_feature_padding[i : i+5, :]).permute(1, 0).float().cuda()
         deepspeech_tensor_all[i] = deepspeech_tensor
 

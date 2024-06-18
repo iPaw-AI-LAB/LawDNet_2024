@@ -8,7 +8,7 @@ export OMP_NUM_THREADS=1
 conda activate lawdnet
 
 # 定义实验名称
-EXPERIMENT_NAME="288-mouth-CrossAttention-插值coarse-to-fine"
+EXPERIMENT_NAME="288-mouth-CrossAttention-插值coarse-to-fine-2"
 
 ## 记得迁移文件夹到对应的位置
 
@@ -24,7 +24,7 @@ MASTER_PORT="29456"
 ## debug 选项
 export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
-## 训练单帧模型，帧分辨率为64x64
+# # 训练单帧模型，帧分辨率为64x64
 # pkill -f torchrun ; torchrun --nproc_per_node=$GPU_COUNT train_LawDNet_frame_distributed.py --config_path "./config/experiment/config_experiment_frame_64.py" --name "$EXPERIMENT_NAME" --master_addr $MASTER_ADDR --master_port $MASTER_PORT
 # echo "finish training 64x64"
 

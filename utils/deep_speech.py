@@ -5,6 +5,11 @@ import resampy
 from scipy.io import wavfile
 from python_speech_features import mfcc
 import tensorflow as tf
+import time
+import os
+
+import threading
+import queue
 
 
 class DeepSpeech():
@@ -19,9 +24,13 @@ class DeepSpeech():
             graph_def.ParseFromString(f.read())
         graph = tf.compat.v1.get_default_graph()
         tf.import_graph_def(graph_def, name="deepspeech")
-        logits_ph = graph.get_tensor_by_name("deepspeech/logits:0") # delete deepspeech 
+        logits_ph = graph.get_tensor_by_name("deepspeech/logits:0") # delete deepspeech if you want to use this py as a package
         input_node_ph = graph.get_tensor_by_name("deepspeech/input_node:0") # delete deepspeech 
         input_lengths_ph = graph.get_tensor_by_name("deepspeech/input_lengths:0") # delete deepspeech 
+        # ###########~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # logits_ph = graph.get_tensor_by_name("logits:0") # delete deepspeech if you want to use this py as a package
+        # input_node_ph = graph.get_tensor_by_name("input_node:0") # delete deepspeech 
+        # input_lengths_ph = graph.get_tensor_by_name("input_lengths:0") # delete deepspeech 
 
         return graph, logits_ph, input_node_ph, input_lengths_ph
 
@@ -68,7 +77,9 @@ class DeepSpeech():
 
         return train_inputs
 
-    def compute_audio_feature(self,audio_path):
+    def compute_audio_feature(self,audio_path):   # original
+        os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+
         audio_sample_rate, audio = wavfile.read(audio_path)
         if audio.ndim != 1:
             warnings.warn(
@@ -81,33 +92,107 @@ class DeepSpeech():
                 sr_new=self.target_sample_rate)
         else:
             resampled_audio = audio.astype(np.float64)
-        with tf.compat.v1.Session(graph=self.graph) as sess:
 
-
-
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.allow_growth = True
+        config.graph_options.optimizer_options.global_jit_level = tf.compat.v1.OptimizerOptions.ON_1
+        with tf.compat.v1.Session(graph=self.graph, config=config) as sess:
+        
+        # with tf.compat.v1.Session(graph=self.graph) as sess:
             input_vector = self.conv_audio_to_deepspeech_input_vector(
                 audio=resampled_audio.astype(np.int16),
                 sample_rate=self.target_sample_rate,
                 num_cepstrum=26,
                 num_context=9)
+            # 91 494
 
             # print("观察deepspeech的输出")
-            # import pdb
-            # pdb.set_trace() 
+            # import pdb; pdb.set_trace() 
             
             network_output = sess.run(
                     self.logits_ph,
                     feed_dict={
                         self.input_node_ph: input_vector[np.newaxis, ...],
                         self.input_lengths_ph: [input_vector.shape[0]]})
+            # n 1 29
             
             ds_features = network_output[::2,0,:]
         return ds_features
 
+    # def compute_audio_feature(self,audio_path):   
+    #     os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+
+    #     audio_sample_rate, audio = wavfile.read(audio_path)
+    #     if audio.ndim != 1:
+    #         warnings.warn(
+    #             "Audio has multiple channels, the first channel is used")
+    #         audio = audio[:, 0]
+    #     if audio_sample_rate != self.target_sample_rate:
+    #         resampled_audio = resampy.resample(
+    #             x=audio.astype(np.float64),
+    #             sr_orig=audio_sample_rate,
+    #             sr_new=self.target_sample_rate)
+    #     else:
+    #         resampled_audio = audio.astype(np.float64)
+
+    #     input_vector = self.conv_audio_to_deepspeech_input_vector(
+    #         audio=resampled_audio.astype(np.int16),
+    #         sample_rate=self.target_sample_rate,
+    #         num_cepstrum=26,
+    #         num_context=9)
+
+    #     from multiprocessing import Process, Queue
+
+    #     def run_in_process(input_vector, result_queue):
+    #         config = tf.compat.v1.ConfigProto()
+    #         config.gpu_options.allow_growth = True
+    #         with tf.compat.v1.Session(graph=self.graph, config=config) as sess:
+    #             result = sess.run(self.logits_ph, feed_dict={self.input_node_ph: input_vector[np.newaxis, ...], self.input_lengths_ph: [input_vector.shape[0]]})
+    #             result_queue.put(result)
+
+    #     input_vector1 = input_vector[:input_vector.shape[0]//4]
+    #     input_vector2 = input_vector[input_vector.shape[0]//4:input_vector.shape[0]//2]
+    #     input_vector3 = input_vector[input_vector.shape[0]//2:input_vector.shape[0]*3//4]
+    #     input_vector4 = input_vector[input_vector.shape[0]*3//4:]
+
+    #     result_queue = Queue()
+
+    #     process1 = Process(target=run_in_process, args=(input_vector1, result_queue))
+    #     process2 = Process(target=run_in_process, args=(input_vector2, result_queue))
+    #     process3 = Process(target=run_in_process, args=(input_vector3, result_queue))
+    #     process4 = Process(target=run_in_process, args=(input_vector4, result_queue))
+
+    #     process1.start()
+    #     process2.start()
+    #     process3.start()
+    #     process4.start()
+
+    #     process1.join()
+    #     process2.join()
+    #     process3.join()
+    #     process4.join()
+
+    #     result1 = result_queue.get()
+    #     result2 = result_queue.get()
+    #     result3 = result_queue.get()
+    #     result4 = result_queue.get()
+
+    #     network_output = np.concatenate((result1, result2, result3, result4), axis=0)
+
+    #     ds_features = network_output[::2,0,:]
+
+    #     return ds_features
+
+
+
 if __name__ == '__main__':
-    audio_path = '../asserts/training_data/split_video_25fps/bilibili_dataset_25fps_FFoutput3mukyw8o_part5.mp4'
-    model_path = '../asserts/output_graph.pb'
+    audio_path = './Exp-of-Junli/template/英文tts.wav'
+    model_path = './asserts/output_graph.pb'
     DSModel = DeepSpeech(model_path)
+
+    start_time = time.time()
     ds_feature = DSModel.compute_audio_feature(audio_path)
     print(ds_feature)
+    end_time = time.time()
+    print(f"Running time: {end_time - start_time} seconds")
 
