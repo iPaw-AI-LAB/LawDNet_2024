@@ -5,24 +5,17 @@ import numpy as np
 import sys
 import time
 sys.path.append('../')
-import subprocess
 from datetime import datetime
 import torch
 import random
-import torchvision.transforms as transforms
-import torch.nn as nn
-import torch.nn.functional as F
-from ffmpy import FFmpeg
 from collections import OrderedDict
 import warnings
 import torchlm
-import matplotlib.pyplot as plt
 from tqdm import tqdm
-from PIL import Image
 from config.config import DINetTrainingOptions
 from torchlm.tools import faceboxesv2
 from torchlm.models import pipnet
-from tensor_processing import *
+from tensor_processing import SmoothSqMask, FaceAlign
 from audio_processing import extract_deepspeech
 from moviepy.editor import VideoFileClip, ImageSequenceClip, AudioFileClip
 
@@ -37,10 +30,11 @@ def generate_video_with_audio(video_path, audio_path, output_dir='./output_video
     
     # 设置模型文件路径
     deepspeech_model_path = "../asserts/output_graph.pb"
-    lawdnet_model_path =  "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-2/clip_training_256/checkpoint_epoch_120.pth"
+    # lawdnet_model_path =  "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-2/clip_training_256/checkpoint_epoch_120.pth"
+    lawdnet_model_path = "./实验10业界最佳-netG_model_epoch_6.pth"
     args = ['--opt.mouth_region_size','288']
     opt = DINetTrainingOptions().parse_args(args)
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(2)
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(0)
     
     gpu_index = 0
     if torch.cuda.is_available() and gpu_index >= 0 and torch.cuda.device_count() > gpu_index:
@@ -58,11 +52,13 @@ def generate_video_with_audio(video_path, audio_path, output_dir='./output_video
     output_name = 'seed-5kp-60standard—epoch60-720P-复现'
     
     # 如果是从音频文件提取DeepSpeech特征
+    print("Extracting DeepSpeech features from audio file...")
     start_time = time.time()
     deepspeech_tensor, _ = extract_deepspeech(audio_path, deepspeech_model_path)
     end_time = time.time()
     print(f"Running time: {end_time - start_time} seconds")
     torch.save(deepspeech_tensor, './template/template_audio_deepspeech.pt')
+    import pdb; pdb.set_trace()
     
     def read_video_np(video_path, max_frames=None):
         cap = cv2.VideoCapture(video_path)
@@ -79,7 +75,8 @@ def generate_video_with_audio(video_path, audio_path, output_dir='./output_video
         cap.release()
         return frames
     
-    video_frames = read_video_np(video_path)
+    video_frames = read_video_np(video_path, max_frames=1000)
+    import pdb; pdb.set_trace()
     video_frames = np.array(video_frames, dtype=np.float32)
     video_frames = video_frames[..., ::-1]
     
@@ -188,7 +185,7 @@ def generate_video_with_audio(video_path, audio_path, output_dir='./output_video
     # return result_video_path
 
 if __name__ == "__main__":
-    video_path = './template/26-_主播说联播_把小事当大事干-也能通过平凡成就非凡.mp4'
+    video_path = './template/bilibili_dataset_25fps_FFoutput (254)-最好的女模特.mp4'
     audio_path = './template/taylor-20s.wav'
     output_dir = './output_video'
     result_video_path = generate_video_with_audio(video_path, audio_path, output_dir)
