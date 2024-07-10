@@ -121,19 +121,18 @@ python data_processing_正脸化.py [OPTIONS]
 1. 用做数据集的代码处理视频
 2. 将视频移动到本实验的 `./assert/training_data/split_video_25fps`
 3. 将视频对应的csv移动到本实验代码的`./assert/training_data/split_video_25fps_landmark_openface`
-- 移动视频和对应csv的代码可以用`autodl-tmp/syncnet_python_origin/test_syncnet_dengjunli.ipynb` -
+- 移动视频和对应csv的代码可以用`./syncnet/test_syncnet_dengjunli.ipynb` -
 4. 运行`data_processing_正脸化.py`,得到crop后的图像
     - crop后的图像大小统一为 **416 320**，比例为1.3:1，通过`FaceAlign`类的参数`out_W`进行设置
     - 得到正脸化的crop landmark 字典 `./asserts/training_data/landmark_crop_dic.npy`
-5. 若需要合并不同数据集的字典`landmark_crop_dic.npy`,可运行`autodl-tmp/DINet-gitee/DINet-update/asserts/training_data/邓-处理大数据集.ipynb`
+5. 若需要合并不同数据集的字典`landmark_crop_dic.npy`,可运行`./有用的脚本小工具/邓-处理大数据集.ipynb`
 5. 重新生成完整的json文件 `python data_processing_正脸化.py --generate_training_json` 
 
 - 若要更换数据集，请将数据集命名为training_data
 - 测试用的小数据集 training_data-一个中国人
 
 ## 常用的训练命令/测试命令
-[【腾讯文档】DINet常用命令-dengjunli](
-https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
+[【腾讯文档】DINet常用命令-dengjunli](https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
 
 ### 实验记录+demo
 [飞书云文档实验记录和demo](https://y5ucgsxnni.feishu.cn/docx/QSxadxHp0o6bgLxiiEbc0nvNnZd)
@@ -142,7 +141,8 @@ https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
 [overleaf 需审批](https://www.overleaf.com/read/vkhhnxrvwbdw#3778eb)
 
 ### 宣传网页
-[LawDNet主页]https://github.com/Fannovel16/ComfyUI-MotionDiff
+[LawDNet主页](https://cucdengjunli.github.io/idf/)
+
 
 ### 评价指标
 [数据集评测指标代码](https://gitee.com/dengjunli/evaluation_wav2lip)
@@ -150,11 +150,14 @@ https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
 ### 资源
 [原仓库DINet](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
 
+### 工程化文档
+[将其工程化的记录](https://kdocs.cn/l/cinrYOJIsclj)
+
 
 ### bug
-1. 处理数据集的时候，金鹏数据集的crop face的长度和deepspeech长度不一致
+1. 处理数据集的时候，jinpeng数据集的crop face的长度和deepspeech长度不一致
 2. 音频的deepspeech帧数总比视频帧多3帧
-3. 对loss的权重敏感，尤其是syncnet_loss
+3. 对loss的权重敏感，尤其是syncnet_loss,导致震荡严重，但是不影响训练结果
 
 
 
