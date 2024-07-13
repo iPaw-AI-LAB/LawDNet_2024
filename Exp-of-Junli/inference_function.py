@@ -162,13 +162,13 @@ def generate_video_with_audio(video_path,
 
 
 if __name__ == "__main__":
-    video_path = './template/丽娟质检中传播音作品片段展示含中英新闻播报模拟主持25fps_prjf.mp4'
+    video_path = './template/test.mp4'
     audio_path = './template/丽娟质检中传播音作品片段展示含中英新闻播报模拟主持25fps_prjf.wav'
     output_dir = './output_video'
     # 设置模型文件路径
-    deepspeech_model_path = "../asserts/output_graph.pb"
+    deepspeech_model_path = "../template/output_graph.pb"
     # lawdnet_model_path =  "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-2/clip_training_256/checkpoint_epoch_120.pth"
-    lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-shengshu/clip_training_256/checkpoint_epoch_599.pth"
+    lawdnet_model_path = "../template/pretrain_model.pth"
     BatchSize = 20
     mouthsize = '288'
     gpu_index = 1

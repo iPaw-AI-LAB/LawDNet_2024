@@ -46,11 +46,8 @@ sh train_sequence_distributed.sh
 打开```train_sequence_distributed.sh``` 修改NAME(实验名称)
 直接执行脚本：```sh train_sequence_distributed.sh```
 
-
 ### DP并行方式训练-慢
 直接执行脚本：```sh ./train_sequence.sh```
-
-
 
 
 ## 测试：
@@ -59,6 +56,39 @@ sh train_sequence_distributed.sh
 ```./Exp-of-Junli/optimized-prediction-deng.ipynb # 方便单步调试看中间结果```
 ```./Exp-of-Junli/inference_function.py # 修改模型路径，数字人视频，音频```
 ```./Exp-of-Junli/server_LawDNet.py # 提供server服务```
+
+## server服务
+下载预训练模型，测试视频：[百度网盘](https://pan.baidu.com/s/1FFINqyyz2to96_-A7QhhHA?pwd=ipaw) 提取码: ipaw 
+
+```sh
+cd Exp-of-Junli;
+python server_LawDNet.py
+```
+
+# 视频生成器脚本说明
+
+本脚本用于生成视频，并与音频同步。以下是脚本中使用的参数说明：
+
+## 参数列表
+
+| 参数名称               | 描述                                                         | 默认值                   |
+|------------------------|--------------------------------------------------------------|--------------------------|
+| `video_path`          | 输入视频文件的路径。                                           | `./template/...mp4`     |
+| `audio_path`          | 输入音频文件的路径。                                           | `./template/...wav`     |
+| `output_dir`          | 输出视频文件的目录。                                           | `./output_video`        |
+| `deepspeech_model_path`| DeepSpeech 模型文件的路径。                                    | `../asserts/output_graph.pb` |
+| `lawdnet_model_path`  | LawdNet 模型文件的路径。                                       | `../output/...pth`      |
+| `BatchSize`           | 处理批次大小。                                                | `20`                     |
+| `mouthsize`           | 嘴部模型的大小。                                              | `288`                    |
+| `gpu_index`           | 使用的GPU索引号。                                             | `1`                      |
+| `result_video_path`   | 生成视频文件的完整路径，由函数生成并返回。                | （由函数生成）           |
+
+## 使用方法
+
+1. 确保所有必要的文件路径正确无误。
+2. 根据需要调整批次大小、嘴部模型大小和GPU索引。
+3. 运行脚本，它将自动处理视频和音频，并生成输出文件。
+
 
 ## 查看wandb 训练日志
 ```https://wandb.ai/ai-zhua``
@@ -156,7 +186,8 @@ python data_processing_正脸化.py [OPTIONS]
 5. 重新生成完整的json文件 `python data_processing_正脸化.py --generate_training_json` 
 
 - 若要更换数据集，请将数据集命名为training_data
-- 测试用的小数据集 training_data-一个中国人
+
+
 
 ## 常用的训练命令/测试命令
 [【腾讯文档】Lawdnet常用命令-dengjunli](https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
