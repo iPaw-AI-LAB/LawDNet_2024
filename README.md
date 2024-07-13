@@ -1,33 +1,64 @@
-# 改进 DINet
+# LawDnet 2024
+
+### BUG
+1. 处理数据集的时候，jinpeng数据集的crop face的长度和deepspeech长度不一致
+2. 音频的deepspeech帧数总比视频帧多3帧
+3. 对loss的权重敏感，尤其是syncnet_loss,导致震荡严重，但是不影响训练结果
+
+### 改进
+1. 根据音频的长度来确定拆帧的数量，推理时
+
 ## 安装说明
-1. 需要用到的模型
-    - 包含 deepspeech 和 换脸
+先安装tensorflow_gpu = 1.15, 模型whl在[百度网盘](https://pan.baidu.com/s/1bNJT409wNlcJgkiAGHcONA?pwd=ipaw)， 提取码：ipaw 
+
+#### conda安装
+```bash
+conda install -c conda-forge ffmpeg
+pip install -r requirements.txt
+```
+
+- 需要用到的模型
+    - 包含 换脸 ，deepspeech(tensorflow), vgg
 链接: https://pan.baidu.com/s/1bNJT409wNlcJgkiAGHcONA?pwd=ipaw 提取码: ipaw 
+
+##### 模型文件放置位置：
+- output_graph.pb : pretrained deepspeech model of tensorflow 1.15，放在```./asserts/```
+- syncnet_256mouth.pth: 用于唇形同步损失，放在```./asserts/```
+
 
 
 # 代码使用说明
 
 ## 训练 
-采用coarse to fine 的训练策略，每个阶段有自己的config文件，父文件是```./config/config.py```
+采用 coarse to fine 的训练策略，每个阶段有自己的config文件，位于```./config/experiment ``` 
+包括：
+
+
+基础配置文件是```./config/config.py```
 
 ### DDP 并行训练方式 - 快
+```python
+sh train_sequence_distributed.sh
+# 对应参数在config.py 和 train_sequence_distributed.sh 中修改
+```
+- 模型保存位置： ```./output/training_model_weight/NAME(实验名称)```
+
 打开```train_sequence_distributed.sh``` 修改NAME(实验名称)
 直接执行脚本：```sh train_sequence_distributed.sh```
 
 
-
 ### DP并行方式训练-慢
-或直接执行脚本：```sh ./train_sequence.sh```
+直接执行脚本：```sh ./train_sequence.sh```
 
 
 
-### 模型保存路径
-```autodl拿过来的/DINet-update/output/training_model_weight/NAME(实验名称)```
-
-[基于codebase仓库DINet重构](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
 
 ## 测试：
-```./Exp-of-Junli/optimized-prediction-deng.ipynb```
+``` cd ./Exp-of-Junli/ ```
+``` python inference_function.py```
+```./Exp-of-Junli/optimized-prediction-deng.ipynb # 方便单步调试看中间结果```
+```./Exp-of-Junli/inference_function.py # 修改模型路径，数字人视频，音频```
+```./Exp-of-Junli/server_LawDNet.py # 提供server服务```
 
 ## 查看wandb 训练日志
 ```https://wandb.ai/ai-zhua``
@@ -38,16 +69,12 @@
 3. 音频处理的函数 `./audio_processing.py`
 
 
-# 做数据集的代码
+# 处理数据集的代码
 [基于syncnet-python修改](https://github.com/iPaw-AI-LAB/syncnet)
 
 功能：将视频转为25fps，并检测得到landmark.csv；若原视频就为25fps，在源文件夹。若原视频不为25fps，存放在目标文件夹
 
-1. 运行make_dataset_multi.py
-    1. 修改里面的源文件夹和目标文件夹（保存25fps视频和csv的位置）
-2. `test_syncnet_dengjunli.ipynb`用于移动数据集
-
-## 做数据集步骤
+## 训练数据集准备
 主要代码```data_processing_正脸化.py```
 
 ## 使用方法
@@ -132,7 +159,8 @@ python data_processing_正脸化.py [OPTIONS]
 - 测试用的小数据集 training_data-一个中国人
 
 ## 常用的训练命令/测试命令
-[【腾讯文档】DINet常用命令-dengjunli](https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
+[【腾讯文档】Lawdnet常用命令-dengjunli](https://docs.qq.com/doc/DTENSWFlpTVFvSkhn)
+
 
 ### 实验记录+demo
 [飞书云文档实验记录和demo](https://y5ucgsxnni.feishu.cn/docx/QSxadxHp0o6bgLxiiEbc0nvNnZd)
@@ -153,11 +181,11 @@ python data_processing_正脸化.py [OPTIONS]
 ### 工程化文档
 [将其工程化的记录](https://kdocs.cn/l/cinrYOJIsclj)
 
+### 鸣谢
 
-### bug
-1. 处理数据集的时候，jinpeng数据集的crop face的长度和deepspeech长度不一致
-2. 音频的deepspeech帧数总比视频帧多3帧
-3. 对loss的权重敏感，尤其是syncnet_loss,导致震荡严重，但是不影响训练结果
+[codebase-DINet](https://fuxivirtualhuman.github.io/pdf/AAAI2023_FaceDubbing.pdf)
+
+
 
 
 

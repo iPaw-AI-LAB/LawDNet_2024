@@ -27,9 +27,9 @@ def extract_deepspeech(driving_audio_path,deepspeech_model_path):
     ds_feature_padding = np.pad(ds_feature, ((2, 2), (0, 0)), mode='edge')
 
 
-    deepspeech_tensor_all = torch.zeros(ds_feature.shape[0], ds_feature.shape[1], 5).cuda()
+    deepspeech_tensor_all = torch.zeros(ds_feature.shape[0], ds_feature.shape[1], 5)
     for i in tqdm(range(ds_feature.shape[0]), desc='Processing Audio batches'):
-        deepspeech_tensor = torch.from_numpy(ds_feature_padding[i : i+5, :]).permute(1, 0).float().cuda()
+        deepspeech_tensor = torch.from_numpy(ds_feature_padding[i : i+5, :]).permute(1, 0).float()
         deepspeech_tensor_all[i] = deepspeech_tensor
 
     # 保存

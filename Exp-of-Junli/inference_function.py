@@ -25,22 +25,25 @@ from models.LawDNet import LawDNet
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"  # 使CUDA错误更易于追踪
 warnings.filterwarnings("ignore")  # 初始化和配置警告过滤，忽略不必要的警告
 
-def generate_video_with_audio(video_path, audio_path, output_dir='./output_video'):
-    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+def generate_video_with_audio(video_path, 
+                              audio_path, 
+                              deepspeech_model_path='../asserts/output_graph.pb',
+                              lawdnet_model_path='../output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-shengshu/clip_training_256/checkpoint_epoch_120.pth',
+                              output_dir='./output_video',
+                              BatchSize = 20,
+                              mouthsize = '288' ,
+                              gpu_index = 0
+                              ):
     
-    # 设置模型文件路径
-    deepspeech_model_path = "../asserts/output_graph.pb"
-    # lawdnet_model_path =  "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-2/clip_training_256/checkpoint_epoch_120.pth"
-    lawdnet_model_path = "./实验10业界最佳-netG_model_epoch_6.pth"
-    args = ['--opt.mouth_region_size','288']
+    args = ['--opt.mouth_region_size', mouthsize]
     opt = DINetTrainingOptions().parse_args(args)
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(0)
     
-    gpu_index = 0
     if torch.cuda.is_available() and gpu_index >= 0 and torch.cuda.device_count() > gpu_index:
         device = f'cuda:{gpu_index}'
+        print(f"Using GPU: {gpu_index}")
     else:
         device = 'cpu'
+        print("Using CPU")
     
     random.seed(opt.seed + gpu_index)
     np.random.seed(opt.seed + gpu_index)
@@ -48,19 +51,21 @@ def generate_video_with_audio(video_path, audio_path, output_dir='./output_video
     torch.manual_seed(opt.seed + gpu_index)
     
     out_W = int(opt.mouth_region_size * 1.25)
-    B = 20
-    output_name = 'seed-5kp-60standard—epoch60-720P-复现'
+    B = BatchSize
+    output_name = '5kp-60standard—epoch120-720P-复现'
     
     # 如果是从音频文件提取DeepSpeech特征
     print("Extracting DeepSpeech features from audio file...")
     start_time = time.time()
     deepspeech_tensor, _ = extract_deepspeech(audio_path, deepspeech_model_path)
     end_time = time.time()
-    print(f"Running time: {end_time - start_time} seconds")
+    print(f"Running time: {end_time - start_time} seconds for extracting DeepSpeech features.")
     torch.save(deepspeech_tensor, './template/template_audio_deepspeech.pt')
-    import pdb; pdb.set_trace()
+
+    # import pdb; pdb.set_trace()
     
     def read_video_np(video_path, max_frames=None):
+        assert os.path.exists(video_path), f"Video file not found: {video_path}"
         cap = cv2.VideoCapture(video_path)
         frames = []
         i = 0
@@ -75,14 +80,13 @@ def generate_video_with_audio(video_path, audio_path, output_dir='./output_video
         cap.release()
         return frames
     
-    video_frames = read_video_np(video_path, max_frames=1000)
-    import pdb; pdb.set_trace()
+    video_frames = read_video_np(video_path, max_frames=deepspeech_tensor.shape[0]+10)
     video_frames = np.array(video_frames, dtype=np.float32)
     video_frames = video_frames[..., ::-1]
     
     len_out = min(len(video_frames), deepspeech_tensor.shape[0]) // B * B
     video_frames = video_frames[:len_out]
-    deepspeech_tensor = deepspeech_tensor[:len_out]
+    deepspeech_tensor = deepspeech_tensor[:len_out].to(device)
     
     net_g = LawDNet(opt.source_channel, opt.ref_channel, opt.audio_channel, 
                     opt.warp_layer_num, opt.num_kpoints, opt.coarse_grid_size).to(device)
@@ -134,16 +138,9 @@ def generate_video_with_audio(video_path, audio_path, output_dir='./output_video
         outframes[i * B:(i + 1) * B] = outframes_B
 
     outframes = outframes.astype(np.uint8)
-    # outframes = outframes[:,:,:,::-1]
     
     timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_path = f'./{timestamp_str}.mp4'
-    # fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    # videoWriter = cv2.VideoWriter(output_path, fourcc, 25, (video_frames.shape[2], video_frames.shape[1]), True)
-    # for frame in outframes:
-    #     videoWriter.write(frame)
-    # videoWriter.release()
+
     def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25):
 
         if not os.path.exists(output_dir):
@@ -156,7 +153,6 @@ def generate_video_with_audio(video_path, audio_path, output_dir='./output_video
         final_clip = processed_clip.set_audio(audio_clip)
 
         final_clip.write_videofile(output_video_path, codec='libx264')
-        print(f"Saved video with audio at: {output_video_path}")
 
         return output_video_path
     
@@ -164,29 +160,25 @@ def generate_video_with_audio(video_path, audio_path, output_dir='./output_video
     output_video_path = os.path.join(output_dir, f"{timestamp_str}_{video_basename_without_ext}_{output_name}.mp4")
     return save_video_with_audio(outframes, output_video_path, audio_path, output_dir)
 
-    
-
-    
-    # def video_add_audio(video_path, audio_path, output_dir):
-    #     if not os.path.exists(output_dir):
-    #         os.makedirs(output_dir)
-    #     _ext_audio = audio_path.split('.')[-1]
-    #     if _ext_audio not in ['mp3', 'wav']:
-    #         raise ValueError('Audio format not supported.')
-    #     _codec = 'copy' if _ext_audio == 'mp3' else 'aac'
-    #     video_basename_without_ext = os.path.splitext(os.path.basename(video_path))[0]
-    #     output_video_path = os.path.join(output_dir, f"{video_basename_without_ext}_{output_name}.mp4")
-    #     ff_command = f"ffmpeg -i \"{video_path}\" -i \"{audio_path}\" -map 0:v -map 1:a -c:v copy -c:a {_codec} -shortest \"{output_video_path}\""
-    #     os.system(ff_command)
-    #     os.remove(video_path)
-    #     return os.path.abspath(output_video_path)
-    
-    # result_video_path = video_add_audio(output_path, audio_path, './output_video')
-    # return result_video_path
 
 if __name__ == "__main__":
-    video_path = './template/bilibili_dataset_25fps_FFoutput (254)-最好的女模特.mp4'
-    audio_path = './template/taylor-20s.wav'
+    video_path = './template/丽娟质检中传播音作品片段展示含中英新闻播报模拟主持25fps_prjf.mp4'
+    audio_path = './template/丽娟质检中传播音作品片段展示含中英新闻播报模拟主持25fps_prjf.wav'
     output_dir = './output_video'
-    result_video_path = generate_video_with_audio(video_path, audio_path, output_dir)
+    # 设置模型文件路径
+    deepspeech_model_path = "../asserts/output_graph.pb"
+    # lawdnet_model_path =  "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-2/clip_training_256/checkpoint_epoch_120.pth"
+    lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-shengshu/clip_training_256/checkpoint_epoch_599.pth"
+    BatchSize = 20
+    mouthsize = '288'
+    gpu_index = 1
+    result_video_path = generate_video_with_audio(video_path, 
+                                                  audio_path,
+                                                  deepspeech_model_path, 
+                                                  lawdnet_model_path,
+                                                  output_dir,
+                                                  BatchSize,
+                                                  mouthsize,
+                                                  gpu_index,
+                                                  )
     print(f"Generated video with audio at: {result_video_path}")

@@ -198,7 +198,7 @@ def load_pretrained_weights(net_g,
             # Always load state_dict for net_g for coarse to fine training
             net_g.load_state_dict(checkpoint['state_dict']['net_g'])
             
-            if opt.resume:
+            if opt.resume: # 是否是本次clip训练的断点训练，而不是coarse to fine的训练
                 print('resume training, Loading all weights and optimizers')
                 # If resuming, load state_dicts for net_dI and net_dV, and all optimizers
                 net_dI.load_state_dict(checkpoint['state_dict']['net_dI'])

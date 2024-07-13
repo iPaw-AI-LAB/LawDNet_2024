@@ -61,10 +61,12 @@ def extract_video_frame(source_video_dir,res_video_frame_dir):
     '''
         extract video frames from videos
     '''
+    import pdb; pdb.set_trace()
     if not os.path.exists(source_video_dir):
         raise ('wrong path of video dir')
     if not os.path.exists(res_video_frame_dir):
         os.mkdir(res_video_frame_dir)
+        print('create frame dir: {}'.format(res_video_frame_dir))
     video_path_list = glob.glob(os.path.join(source_video_dir, '*.mp4'))
     for video_path in video_path_list:
         video_name = os.path.basename(video_path)
@@ -333,29 +335,44 @@ def crop_face_according_openfaceLM_multithreading(openface_landmark_dir, video_f
 
 if __name__ == '__main__':
     opt = DataProcessingOptions().parse_args()
+    '''
+    1 和 6 ，只能选1个
+    4 和 7 ，只能选1个
+    '''
+    print("开始处理数据")
     ##########  step1: extract video frames
-    if opt.extract_video_frame:
-        extract_video_frame(opt.source_video_dir, opt.video_frame_dir)
+    # print("1. 开始提取视频帧")
+    # if opt.extract_video_frame:
+    #     extract_video_frame(opt.source_video_dir, opt.video_frame_dir)
     ##########  step2: extract audio files
+
+    ################# 多线程版本的  extract_video_frame
+    ##########  step1: extract video frames reverse
+    print("1. 开始提取视频帧（多线程）")
+    if opt.extract_video_frame_multithreading:
+        extract_video_frame_multithreading(opt.source_video_dir, opt.video_frame_dir)
+
+    print("2. 开始提取音频")
     if opt.extract_audio:
         extract_audio(opt.source_video_dir,opt.audio_dir)
     ##########  step3: extract deep speech features
+    print("3. 开始提取deep speech特征")
     if opt.extract_deep_speech:
         extract_deep_speech(opt.audio_dir, opt.deep_speech_dir,opt.deep_speech_model)
-    ##########  step4: crop face images
-    if opt.crop_face:
-        crop_face_according_openfaceLM(opt.openface_landmark_dir,opt.video_frame_dir,opt.crop_face_dir,opt.clip_length)
-    ##########  step5: generate training json file
-    if opt.generate_training_json:
-        generate_training_json(opt.crop_face_dir,opt.deep_speech_dir,opt.clip_length,opt.json_path)
+    # ##########  step4: crop face images
+    # print("4. 开始裁剪人脸")
+    # if opt.crop_face:
+    #     crop_face_according_openfaceLM(opt.openface_landmark_dir,opt.video_frame_dir,opt.crop_face_dir,opt.clip_length)
 
-    ################# 多线程版本的
-    ##########  step6: extract video frames reverse
-    if opt.extract_video_frame_multithreading:
-        extract_video_frame_multithreading(opt.source_video_dir, opt.video_frame_dir)
+    ################# 多线程版本的 crop_face
     ##########  step7: crop face images reverse
+    print("7. 开始裁剪人脸（多线程）")
     if opt.crop_face_multithreading:
         crop_face_according_openfaceLM_multithreading(opt.openface_landmark_dir, opt.video_frame_dir, opt.crop_face_dir,
                                              opt.clip_length)
 
 
+    ##########  step5: generate training json file
+    print("5. 开始生成训练json文件")
+    if opt.generate_training_json:
+        generate_training_json(opt.crop_face_dir,opt.deep_speech_dir,opt.clip_length,opt.json_path)

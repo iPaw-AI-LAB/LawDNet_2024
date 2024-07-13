@@ -44,10 +44,27 @@ def process_audio_and_generate_video(audio_path):
     # 在这里添加处理音频文件并生成视频文件的逻辑
     # 例如，将生成的视频文件路径返回
     print("audio_path: ", audio_path)
-    video_path = './template/26-_主播说联播_把小事当大事干-也能通过平凡成就非凡.mp4'
-    video_path = generate_video_with_audio(video_path, audio_path)
+
+    video_path = './template/丽娟质检中传播音作品片段展示含中英新闻播报模拟主持25fps_prjf.mp4'
+    output_dir = './output_video'
+    # 设置模型文件路径
+    deepspeech_model_path = "../asserts/output_graph.pb"
+    # lawdnet_model_path =  "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-2/clip_training_256/checkpoint_epoch_120.pth"
+    lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-shengshu/clip_training_256/checkpoint_epoch_599.pth"
+    BatchSize = 20
+    mouthsize = '288'
+    gpu_index = 1
+    result_video_path = generate_video_with_audio(video_path, 
+                                                  audio_path,
+                                                  deepspeech_model_path, 
+                                                  lawdnet_model_path,
+                                                  output_dir,
+                                                  BatchSize,
+                                                  mouthsize,
+                                                  gpu_index,
+                                                  )
     
-    return video_path
+    return result_video_path
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5828)
