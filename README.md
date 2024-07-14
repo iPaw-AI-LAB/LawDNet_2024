@@ -18,15 +18,23 @@
 ## 安装说明
 先安装tensorflow_gpu = 1.15, 模型whl在[百度网盘](https://pan.baidu.com/s/1bNJT409wNlcJgkiAGHcONA?pwd=ipaw)， 提取码：ipaw 
 
+下载完成后，存放于`./tensorflow_gpu-1.15.0-cp37-cp37m-manylinux2010_x86_64.whl`
+
+先安装tensorflow, 再安装torch
+
 ```bash
+conda create --name LawDNet python=3.7
+conda activate LawDNet
+pip install tensorflow_gpu-1.15.0-cp37-cp37m-manylinux2010_x86_64.whl
 conda install -c conda-forge ffmpeg
 pip install -r requirements.txt
 ```
 
 - 需要用到的模型: 换脸 ，deepspeech(tensorflow), vgg 等。 [百度网盘](https://pan.baidu.com/s/1bNJT409wNlcJgkiAGHcONA?pwd=ipaw)， 提取码：ipaw 
 
-- output_graph.pb : pretrained deepspeech model of tensorflow 1.15，放在```./asserts/```
-- syncnet_256mouth.pth: 用于唇形同步损失，放在```./asserts/```
+- output_graph.pb : pretrained deepspeech model of tensorflow 1.15，用于提取音频特征，放在```./asserts/```
+- syncnet_256mouth.pth: 用于训练时计算唇形同步损失，放在```./asserts/```
+
 ---
 
 #### 有用的小工具： `./有用的脚本小工具/`
