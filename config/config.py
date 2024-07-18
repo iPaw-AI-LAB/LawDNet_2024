@@ -15,6 +15,7 @@ class DataProcessingOptions():
         self.parser.add_argument('--extract_video_frame_multithreading', action='store_true', help='extract video frame multithreading')
         self.parser.add_argument('--extract_audio', action='store_true', help='extract audio files from videos')
         self.parser.add_argument('--extract_deep_speech', action='store_true', help='extract deep speech features')
+        self.parser.add_argument('--extract_deep_speech_multithreading', action='store_true', help='extract deep speech features multithreading')
         self.parser.add_argument('--crop_face', action='store_true', help='crop face')
         self.parser.add_argument('--crop_face_multithreading', action='store_true', help='crop face multithreading')
         self.parser.add_argument('--generate_training_json', action='store_true', help='generate training json file')

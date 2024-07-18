@@ -32,7 +32,8 @@ def generate_video_with_audio(video_path,
                               output_dir='./output_video',
                               BatchSize = 20,
                               mouthsize = '288' ,
-                              gpu_index = 0
+                              gpu_index = 0,
+                              output_name = '5kp-60standard—epoch120-720P-复现'
                               ):
     
     args = ['--opt.mouth_region_size', mouthsize]
@@ -52,7 +53,6 @@ def generate_video_with_audio(video_path,
     
     out_W = int(opt.mouth_region_size * 1.25)
     B = BatchSize
-    output_name = '5kp-60standard—epoch120-720P-复现'
     
     # 如果是从音频文件提取DeepSpeech特征
     print("Extracting DeepSpeech features from audio file...")
@@ -162,16 +162,17 @@ def generate_video_with_audio(video_path,
 
 
 if __name__ == "__main__":
-    video_path = './template/test.mp4'
-    audio_path = './template/丽娟质检中传播音作品片段展示含中英新闻播报模拟主持25fps_prjf.wav'
+    video_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.mp4'
+    audio_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.wav'
     output_dir = './output_video'
     # 设置模型文件路径
-    deepspeech_model_path = "../template/output_graph.pb"
-    # lawdnet_model_path =  "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-2/clip_training_256/checkpoint_epoch_120.pth"
-    lawdnet_model_path = "../template/pretrain_model.pth"
+    deepspeech_model_path = "../asserts/output_graph.pb"
+    lawdnet_model_path =  "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-1/clip_training_256/netG_model_epoch_119.pth"
+    # lawdnet_model_path = "../template/pretrain_model.pth"
     BatchSize = 20
     mouthsize = '288'
     gpu_index = 1
+    output_name = '288-mouth-CrossAttention-HDTF-bilibili-1-epoch120'
     result_video_path = generate_video_with_audio(video_path, 
                                                   audio_path,
                                                   deepspeech_model_path, 
@@ -180,5 +181,6 @@ if __name__ == "__main__":
                                                   BatchSize,
                                                   mouthsize,
                                                   gpu_index,
+                                                  output_name
                                                   )
     print(f"Generated video with audio at: {result_video_path}")

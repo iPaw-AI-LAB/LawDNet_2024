@@ -35,8 +35,11 @@ def extract_audio(source_video_dir,res_audio_dir):
     for video_path in video_path_list:
         print('extract audio from video: {}'.format(os.path.basename(video_path)))
         audio_path = os.path.join(res_audio_dir, os.path.basename(video_path).replace('.mp4', '.wav'))
-        cmd = 'ffmpeg -i {} -f wav -ar 16000 {}'.format(video_path, audio_path)
-        subprocess.call(cmd, shell=True)
+        cmd = 'ffmpeg -y -i {} -f wav -ar 16000 {}'.format(video_path, audio_path)
+        result = subprocess.run(cmd, shell=True, stdout=None, stderr=None)
+
+        if result.returncode != 0:
+            print('Error processing audio')
 
 def extract_deep_speech(audio_dir,res_deep_speech_dir,deep_speech_model_path):
     '''
@@ -61,7 +64,7 @@ def extract_video_frame(source_video_dir,res_video_frame_dir):
     '''
         extract video frames from videos
     '''
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     if not os.path.exists(source_video_dir):
         raise ('wrong path of video dir')
     if not os.path.exists(res_video_frame_dir):
@@ -83,6 +86,31 @@ def extract_video_frame(source_video_dir,res_video_frame_dir):
             ret, frame = videoCapture.read()
             result_path = os.path.join(frame_dir, str(i).zfill(6) + '.jpg')
             cv2.imwrite(result_path, frame)
+
+def extract_deep_speech_multithreading(audio_dir, res_deep_speech_dir, deep_speech_model_path, max_workers=8):
+    '''
+    extract deep speech feature using multithreading
+    '''
+    # import pdb;pdb.set_trace()
+    if not os.path.exists(res_deep_speech_dir):
+        os.mkdir(res_deep_speech_dir)
+    DSModel = DeepSpeech(deep_speech_model_path)
+    wav_path_list = glob.glob(os.path.join(audio_dir, '*.wav'))
+
+    def process_audio(wav_path):
+        print('video_name 正在处理：', wav_path)
+        video_name = os.path.basename(wav_path).replace('.wav', '')
+        res_dp_path = os.path.join(res_deep_speech_dir, video_name + '_deepspeech.txt')
+        if os.path.exists(res_dp_path):
+            os.remove(res_dp_path)
+        print('extract deep speech feature from audio:{}'.format(video_name))
+        ds_feature = DSModel.compute_audio_feature(wav_path)
+        np.savetxt(res_dp_path, ds_feature)
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        print('start extracting deep speech feature using multithreading...')
+        print('len(wav_path_list):', len(wav_path_list))
+        executor.map(process_audio, wav_path_list)
 
 
 def crop_face_according_openfaceLM(openface_landmark_dir,video_frame_dir,res_crop_face_dir,clip_length):
@@ -147,11 +175,11 @@ def crop_face_according_openfaceLM(openface_landmark_dir,video_frame_dir,res_cro
                 if os.path.exists(res_crop_face_frame_path):
                    os.remove(res_crop_face_frame_path)
                 cv2.imwrite(res_crop_face_frame_path, face_align_img_np)
-                landmark_crop_dic[res_crop_face_frame_path] = lmrks_align[index]   
+                # landmark_crop_dic[res_crop_face_frame_path] = lmrks_align[index]   
                 index +=1 
 
-    print("save landmark_crop_dic.npy")
-    np.save('./asserts/training_data/landmark_crop_dic.npy',landmark_crop_dic)
+    # print("save landmark_crop_dic.npy")
+    # np.save('./asserts/training_data/landmark_crop_dic.npy',landmark_crop_dic)
 
 
 def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_path):
@@ -255,7 +283,7 @@ def extract_video_frame_multithreading(source_video_dir, res_video_frame_dir):
         os.makedirs(res_video_frame_dir)
     video_path_list = glob.glob(os.path.join(source_video_dir, '*.mp4'))
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=32) as executor:
         executor.map(process_video, video_path_list)
 
 def crop_face_according_openfaceLM_multithreading(openface_landmark_dir, video_frame_dir, res_crop_face_dir, clip_length):
@@ -264,7 +292,8 @@ def crop_face_according_openfaceLM_multithreading(openface_landmark_dir, video_f
     '''
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    landmark_crop_dic = {}  # 定义一个左上标角的字典
+    # landmark_crop_dic = {}  # 定义一个左上标角的字典
+    print('device:', device)
     facealigner = FaceAlign(device=device, ratio=1.6)
 
     if not os.path.exists(openface_landmark_dir):
@@ -321,15 +350,18 @@ def crop_face_according_openfaceLM_multithreading(openface_landmark_dir, video_f
                 if os.path.exists(res_crop_face_frame_path):
                     os.remove(res_crop_face_frame_path)
                 cv2.imwrite(res_crop_face_frame_path, face_align_img_np)
-                landmark_crop_dic[res_crop_face_frame_path] = lmrks_align[index]
+                # landmark_crop_dic[res_crop_face_frame_path] = lmrks_align[index]
                 index += 1
 
+            del images_np, images_torch, landmark_np, landmarks_tensor, face_align_img, lmrks_align  # Free up memory
+
+
     # 使用线程池进行并行处理
-    with ThreadPool(processes=22) as pool:
+    with ThreadPoolExecutor(max_workers=32) as pool:
         pool.map(process_video, landmark_openface_path_list)
 
-    print("save landmark_crop_dic.npy") # 保存左上角坐标
-    np.save('./asserts/training_data/landmark_crop_dic.npy', landmark_crop_dic)
+    # print("save landmark_crop_dic.npy") # 保存左上角坐标
+    # np.save('./asserts/training_data/landmark_crop_dic.npy', landmark_crop_dic)
 
 
 
@@ -341,38 +373,52 @@ if __name__ == '__main__':
     '''
     print("开始处理数据")
     ##########  step1: extract video frames
-    # print("1. 开始提取视频帧")
-    # if opt.extract_video_frame:
-    #     extract_video_frame(opt.source_video_dir, opt.video_frame_dir)
-    ##########  step2: extract audio files
+    
+    if opt.extract_video_frame:
+        print("1. 开始提取视频帧（单线程）")
+        extract_video_frame(opt.source_video_dir, opt.video_frame_dir)
+    #########  step2: extract audio files
 
     ################# 多线程版本的  extract_video_frame
     ##########  step1: extract video frames reverse
-    print("1. 开始提取视频帧（多线程）")
+    
     if opt.extract_video_frame_multithreading:
+        print("1. 开始提取视频帧（多线程）")
         extract_video_frame_multithreading(opt.source_video_dir, opt.video_frame_dir)
 
-    print("2. 开始提取音频")
+    
     if opt.extract_audio:
+        print("2. 开始提取音频")
         extract_audio(opt.source_video_dir,opt.audio_dir)
     ##########  step3: extract deep speech features
-    print("3. 开始提取deep speech特征")
+    
     if opt.extract_deep_speech:
+        print("3. 开始提取deep speech特征(单线程)")
         extract_deep_speech(opt.audio_dir, opt.deep_speech_dir,opt.deep_speech_model)
+
+    ################# 多线程版本的 extract_deep_speech
+    if opt.extract_deep_speech_multithreading:
+        print("3. 开始提取deep speech特征（多线程）")
+        extract_deep_speech_multithreading(opt.audio_dir, opt.deep_speech_dir, opt.deep_speech_model, max_workers=8)
+
+
     # ##########  step4: crop face images
-    # print("4. 开始裁剪人脸")
-    # if opt.crop_face:
-    #     crop_face_according_openfaceLM(opt.openface_landmark_dir,opt.video_frame_dir,opt.crop_face_dir,opt.clip_length)
+    
+    if opt.crop_face:
+        print("4. 开始裁剪人脸(单线程)")
+        crop_face_according_openfaceLM(opt.openface_landmark_dir,opt.video_frame_dir,opt.crop_face_dir,opt.clip_length)
 
     ################# 多线程版本的 crop_face
     ##########  step7: crop face images reverse
-    print("7. 开始裁剪人脸（多线程）")
+    
     if opt.crop_face_multithreading:
+        print("7. 开始裁剪人脸（多线程）")
         crop_face_according_openfaceLM_multithreading(opt.openface_landmark_dir, opt.video_frame_dir, opt.crop_face_dir,
                                              opt.clip_length)
 
 
     ##########  step5: generate training json file
-    print("5. 开始生成训练json文件")
+    
     if opt.generate_training_json:
+        print("5. 开始生成训练json文件")
         generate_training_json(opt.crop_face_dir,opt.deep_speech_dir,opt.clip_length,opt.json_path)

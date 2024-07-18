@@ -17,6 +17,7 @@ def extract_deepspeech(driving_audio_path,deepspeech_model_path):
         Int: audio_frame_length 音频帧数
     '''
     print('extracting deepspeech feature from : {}'.format(driving_audio_path))
+    print('deepspeech_model_path:',deepspeech_model_path)
     if not os.path.exists(deepspeech_model_path):
         raise ('pls download pretrained model of deepspeech')
     DSModel = DeepSpeech(deepspeech_model_path)

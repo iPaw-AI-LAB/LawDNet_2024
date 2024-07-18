@@ -109,9 +109,17 @@ def SimilarityTransform_torch_2D(src, dst):
   
     P = dst_demean.view(Batch_size,50,1)
     S = torch.matmul(Q.transpose(-1,-2),P)
-    QTQ = torch.matmul(Q.transpose(-1,-2),Q)
+    # QTQ = torch.matmul(Q.transpose(-1,-2),Q)
+    # I = torch.eye(4).to(device)
+    # M = torch.matmul(torch.inverse(QTQ+1e-8*I),S)
+
+    # avoid the torch.inverse 多次调用问题
+    QTQ = torch.matmul(Q.transpose(-1, -2), Q)
     I = torch.eye(4).to(device)
-    M = torch.matmul(torch.inverse(QTQ+1e-8*I),S)
+    inv_QTQ = torch.inverse(QTQ + 1e-8 * I)  # Compute inverse once
+    M = torch.matmul(inv_QTQ, S)
+
+
     Similarity_Matrix_1k = torch.cat((M[:,0,:],M[:,1,:],M[:,2,:]),dim=-1)
     Similarity_Matrix_2k = torch.cat((-M[:,1,:],M[:,0,:],M[:,3,:]),dim=-1)
     Similarity_Matrix = torch.stack((Similarity_Matrix_1k,Similarity_Matrix_2k),dim=-2).view(Batch_size,2,3)
@@ -130,8 +138,13 @@ def SimilarityTransform_torch_2D(src, dst):
     trans_matrix_1_3d = torch.cat([trans_matrix_1,trans_matrix_3],dim=-2)
     trans_matrix_2_3d = torch.cat([trans_matrix_2,trans_matrix_3],dim=-2) 
 
-    Similarity_Matrix_3d_final = torch.matmul(Similarity_Matrix_3d,trans_matrix_1_3d)
-    Similarity_Matrix_3d_final = torch.matmul(torch.inverse(trans_matrix_2_3d),Similarity_Matrix_3d_final)
+    # Similarity_Matrix_3d_final = torch.matmul(Similarity_Matrix_3d,trans_matrix_1_3d)
+    # Similarity_Matrix_3d_final = torch.matmul(torch.inverse(trans_matrix_2_3d),Similarity_Matrix_3d_final)
+
+    # avoid the torch.inverse 多次调用问题
+    inv_trans_matrix_2_3d = torch.inverse(trans_matrix_2_3d)  # Compute inverse once
+    Similarity_Matrix_3d_final = torch.matmul(Similarity_Matrix_3d, trans_matrix_1_3d)
+    Similarity_Matrix_3d_final = torch.matmul(inv_trans_matrix_2_3d, Similarity_Matrix_3d_final)
 
 
     return Similarity_Matrix_3d_final
