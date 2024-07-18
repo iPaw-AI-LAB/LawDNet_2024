@@ -90,6 +90,17 @@ run_torchrun_and_wait() {
   wait $torchrun_pid
 }
 
+run_torchrun_and_wait_clip() {
+  local config_path=$1
+  local experiment_name=$2
+  local master_port=$3
+
+  wait_for_port_release $master_port
+  torchrun --nproc_per_node=$GPU_COUNT train_LawDNet_clip_distributed.py --config_path "$config_path" --name "$experiment_name" --master_addr $MASTER_ADDR --master_port $master_port &
+  local torchrun_pid=$!
+  wait $torchrun_pid
+}
+
 ######## 训练单帧模型，帧分辨率为64x64
 MASTER_PORT="29481"
 run_torchrun_and_wait "./config/experiment/config_experiment_frame_64.py" "$EXPERIMENT_NAME" $MASTER_PORT
@@ -107,6 +118,6 @@ echo "finish training 256x256"
 
 ######### 训练多帧模型，帧分辨率为256x256
 MASTER_PORT="29484"
-run_torchrun_and_wait "./config/experiment/config_experiment_clip_256.py" "$EXPERIMENT_NAME" $MASTER_PORT
+run_torchrun_and_wait_clip "./config/experiment/config_experiment_clip_256.py" "$EXPERIMENT_NAME" $MASTER_PORT
 echo "finish training, the experiment name is $EXPERIMENT_NAME"
 
