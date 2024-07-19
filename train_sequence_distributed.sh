@@ -59,7 +59,7 @@ EXPERIMENT_NAME="288-mouth-CrossAttention-HDTF-bilibili-xhs"
 ## 记得迁移文件夹到对应的位置
 
 # 设置使用的GPU编号
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7  # 0,1,2,3 表示使用编号为 0,1,2,3 的 GPU
+export CUDA_VISIBLE_DEVICES=2,3  # 0,1,2,3 表示使用编号为 0,1,2,3 的 GPU
 GPU_COUNT=$(echo "$CUDA_VISIBLE_DEVICES" | awk -F',' '{print NF}')
 echo "Using $GPU_COUNT GPUs: $CUDA_VISIBLE_DEVICES"
 

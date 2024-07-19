@@ -36,7 +36,7 @@ def generate_video_with_audio(video_path,
                               output_name = '5kp-60standard—epoch120-720P-复现'
                               ):
     
-    args = ['--opt.mouth_region_size', mouthsize]
+    args = ['--mouth_region_size', mouthsize]
     opt = DINetTrainingOptions().parse_args(args)
     
     if torch.cuda.is_available() and gpu_index >= 0 and torch.cuda.device_count() > gpu_index:
@@ -52,6 +52,8 @@ def generate_video_with_audio(video_path,
     torch.manual_seed(opt.seed + gpu_index)
     
     out_W = int(opt.mouth_region_size * 1.25)
+    print("opt.mouth_region_size: ", opt.mouth_region_size)
+    print(f"out_W: {out_W}")
     B = BatchSize
     
     # 如果是从音频文件提取DeepSpeech特征
@@ -81,7 +83,7 @@ def generate_video_with_audio(video_path,
         return frames
     
     # video_frames = read_video_np(video_path, max_frames=deepspeech_tensor.shape[0]+10)
-    video_frames = read_video_np(video_path,max_frames=100)
+    video_frames = read_video_np(video_path, max_frames=None)
     print("for test!! video_frames length: ", len(video_frames))
     video_frames = np.array(video_frames, dtype=np.float32)
     video_frames = video_frames[..., ::-1]
@@ -92,6 +94,7 @@ def generate_video_with_audio(video_path,
     
     net_g = LawDNet(opt.source_channel, opt.ref_channel, opt.audio_channel, 
                     opt.warp_layer_num, opt.num_kpoints, opt.coarse_grid_size).to(device)
+    print(f"Loading LawDNet model from: {lawdnet_model_path}")
     checkpoint = torch.load(lawdnet_model_path)
     state_dict = checkpoint['state_dict']['net_g']
     new_state_dict = OrderedDict((k[7:], v) for k, v in state_dict.items())
@@ -173,12 +176,12 @@ if __name__ == "__main__":
     # 设置模型文件路径
     deepspeech_model_path = "../asserts/output_graph.pb"
     # lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-1/clip_training_256/netG_model_epoch_119.pth"
-    lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-xhs/clip_training_256/checkpoint_epoch_130.pth"
+    lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-xhs/clip_training_256/checkpoint_epoch_170.pth"
     # lawdnet_model_path = "../template/pretrain_model.pth"
     BatchSize = 20
-    mouthsize = '288'
-    gpu_index = 5
-    output_name = '288-mouth-CrossAttention-HDTF-bilibili-xhs'
+    mouthsize = '256'
+    gpu_index = 3
+    output_name = '256-mouth-CrossAttention-HDTF-bilibili-xhs'
     result_video_path = generate_video_with_audio(video_path, 
                                                   audio_path,
                                                   deepspeech_model_path, 

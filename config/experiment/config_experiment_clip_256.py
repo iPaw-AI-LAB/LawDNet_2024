@@ -2,15 +2,15 @@
 experiment_config = {
     'augment_num': 3,
     'mouth_region_size': 288,  # 256
-    'batch_size': 8, # 代表一张卡的batchsize
-    # 'pretrained_frame_DINet_path': './output/training_model_weight/frame_training_256/netG_model_epoch_5.pth', # 填写上一轮coarse训练的模型路径
-    'pretrained_frame_DINet_path': './output/training_model_weight/clip_training_256/checkpoint_epoch_70.pth', # 填写上一轮coarse训练的模型路径
+    'batch_size': 4, # 代表一张卡的batchsize
+    # 'pretrained_frame_DINet_path': './output/training_model_weight/frame_training_256/netG_model_epoch_9.pth', # 填写上一轮coarse训练的模型路径
+    'pretrained_frame_DINet_path': './output/training_model_weight/clip_training_256-256无效/checkpoint_epoch_170.pth', # 填写上一轮coarse训练的模型路径
     'result_path': './output/training_model_weight/clip_training_256', # 会自动根据实验名字添加子文件夹
     'pretrained_syncnet_path': './asserts/syncnet_256mouth.pth',
-    'non_decay': 29, 
-    'decay': 100,
-    'start_epoch': 71,
-    'resume': True   # 是否是clip的断点训练，True则加载所有参数，包括学习率，判别器； False则只加载生成器
+    'non_decay': 85, 
+    'decay': 85,
+    'start_epoch': 1,
+    'resume': False   # 是否是clip的断点训练，True则加载所有参数，包括学习率，判别器； False则只加载生成器
 }
 
 
