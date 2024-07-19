@@ -297,10 +297,10 @@ def train(
 
     smooth_sqmask = SmoothSqMask(device=device_id).to(device_id)
 
-    for epoch in range(opt.start_epoch, opt.non_decay + opt.decay + 1):
+    for epoch in range(opt.start_epoch, opt.start_epoch + opt.non_decay + opt.decay + 1):
         train_sampler.set_epoch(epoch)
         net_g.train()
-        for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch} of {opt.non_decay + opt.decay}")):
+        for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch} of {opt.start_epoch + opt.non_decay + opt.decay + 1}")):
             source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag = data
             flag = flag.to(device_id)
             # 检查是否有脏数据

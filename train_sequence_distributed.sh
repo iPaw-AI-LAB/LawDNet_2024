@@ -59,7 +59,7 @@ EXPERIMENT_NAME="288-mouth-CrossAttention-HDTF-bilibili-xhs"
 ## 记得迁移文件夹到对应的位置
 
 # 设置使用的GPU编号
-export CUDA_VISIBLE_DEVICES=0,1,2,3  # 0,1,2,3 表示使用编号为 0,1,2,3 的 GPU
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7  # 0,1,2,3 表示使用编号为 0,1,2,3 的 GPU
 GPU_COUNT=$(echo "$CUDA_VISIBLE_DEVICES" | awk -F',' '{print NF}')
 echo "Using $GPU_COUNT GPUs: $CUDA_VISIBLE_DEVICES"
 
@@ -101,20 +101,20 @@ run_torchrun_and_wait_clip() {
   wait $torchrun_pid
 }
 
-######## 训练单帧模型，帧分辨率为64x64
-MASTER_PORT="29481"
-run_torchrun_and_wait "./config/experiment/config_experiment_frame_64.py" "$EXPERIMENT_NAME" $MASTER_PORT
-echo "finish training 64x64"
+# ######## 训练单帧模型，帧分辨率为64x64
+# MASTER_PORT="29481"
+# run_torchrun_and_wait "./config/experiment/config_experiment_frame_64.py" "$EXPERIMENT_NAME" $MASTER_PORT
+# echo "finish training 64x64"
 
-# ####### 训练单帧模型，帧分辨率为128x128
-MASTER_PORT="29482"
-run_torchrun_and_wait "./config/experiment/config_experiment_frame_128.py" "$EXPERIMENT_NAME" $MASTER_PORT
-echo "finish training 128x128"
+# # ####### 训练单帧模型，帧分辨率为128x128
+# MASTER_PORT="29482"
+# run_torchrun_and_wait "./config/experiment/config_experiment_frame_128.py" "$EXPERIMENT_NAME" $MASTER_PORT
+# echo "finish training 128x128"
 
-####### 训练单帧模型，帧分辨率为256x256
-MASTER_PORT="29483"
-run_torchrun_and_wait "./config/experiment/config_experiment_frame_256.py" "$EXPERIMENT_NAME" $MASTER_PORT
-echo "finish training 256x256"
+# ####### 训练单帧模型，帧分辨率为256x256
+# MASTER_PORT="29483"
+# run_torchrun_and_wait "./config/experiment/config_experiment_frame_256.py" "$EXPERIMENT_NAME" $MASTER_PORT
+# echo "finish training 256x256"
 
 ######### 训练多帧模型，帧分辨率为256x256
 MASTER_PORT="29484"

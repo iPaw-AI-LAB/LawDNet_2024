@@ -80,7 +80,9 @@ def generate_video_with_audio(video_path,
         cap.release()
         return frames
     
-    video_frames = read_video_np(video_path, max_frames=deepspeech_tensor.shape[0]+10)
+    # video_frames = read_video_np(video_path, max_frames=deepspeech_tensor.shape[0]+10)
+    video_frames = read_video_np(video_path,max_frames=100)
+    print("for test!! video_frames length: ", len(video_frames))
     video_frames = np.array(video_frames, dtype=np.float32)
     video_frames = video_frames[..., ::-1]
     
@@ -162,17 +164,21 @@ def generate_video_with_audio(video_path,
 
 
 if __name__ == "__main__":
-    video_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.mp4'
-    audio_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.wav'
+    
+    video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps/RD_Radio1_000_gfzcyh.mp4'
+    audio_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps_audio/RD_Radio1_000_gfzcyh.wav'
+    # video_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.mp4'
+    # audio_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.wav'
     output_dir = './output_video'
     # 设置模型文件路径
     deepspeech_model_path = "../asserts/output_graph.pb"
-    lawdnet_model_path =  "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-1/clip_training_256/netG_model_epoch_119.pth"
+    # lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-1/clip_training_256/netG_model_epoch_119.pth"
+    lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-xhs/clip_training_256/checkpoint_epoch_130.pth"
     # lawdnet_model_path = "../template/pretrain_model.pth"
     BatchSize = 20
     mouthsize = '288'
-    gpu_index = 1
-    output_name = '288-mouth-CrossAttention-HDTF-bilibili-1-epoch120'
+    gpu_index = 5
+    output_name = '288-mouth-CrossAttention-HDTF-bilibili-xhs'
     result_video_path = generate_video_with_audio(video_path, 
                                                   audio_path,
                                                   deepspeech_model_path, 

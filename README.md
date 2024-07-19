@@ -168,6 +168,7 @@ sh train_sequence_distributed.sh
 1. 请仔细检查各个训练阶段的config文件
 2. 务必保证coarse to fine 训练，直接训第四步得到的嘴部是模糊的，模型没有办法一步登天
 3. 请检查torchrun的端口号是否被占用
+4. 若训练效果嘴巴模糊，则增加最后一步的epoch到200以上
 
 
 ## 测试：
