@@ -2,9 +2,9 @@
 experiment_config = {
     'augment_num': 3,
     'mouth_region_size': 288,  # 256
-    'batch_size': 4, # 代表一张卡的batchsize
-    # 'pretrained_frame_DINet_path': './output/training_model_weight/frame_training_256/netG_model_epoch_9.pth', # 填写上一轮coarse训练的模型路径
-    'pretrained_frame_DINet_path': './output/training_model_weight/clip_training_256-256无效/checkpoint_epoch_170.pth', # 填写上一轮coarse训练的模型路径
+    'batch_size': 1, # 代表一张卡的batchsize
+    'pretrained_frame_DINet_path': './output/training_model_weight/frame_training_256/netG_model_epoch_9.pth', # 填写上一轮coarse训练的模型路径
+    # 'pretrained_frame_DINet_path': './output/training_model_weight/clip_training_256-256无效/checkpoint_epoch_170.pth', # 填写上一轮coarse训练的模型路径
     'result_path': './output/training_model_weight/clip_training_256', # 会自动根据实验名字添加子文件夹
     'pretrained_syncnet_path': './asserts/syncnet_256mouth.pth',
     'non_decay': 85, 

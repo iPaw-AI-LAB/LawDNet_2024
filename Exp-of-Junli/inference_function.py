@@ -11,6 +11,7 @@ import random
 from collections import OrderedDict
 import warnings
 import torchlm
+import subprocess
 from tqdm import tqdm
 from config.config import DINetTrainingOptions
 from torchlm.tools import faceboxesv2
@@ -64,6 +65,10 @@ def generate_video_with_audio(video_path,
     print(f"Running time: {end_time - start_time} seconds for extracting DeepSpeech features.")
     torch.save(deepspeech_tensor, './template/template_audio_deepspeech.pt')
 
+    ## 测试时：直接读取本地deepspeech_tensor
+    # print("Loading DeepSpeech features from local file...")
+    # deepspeech_tensor = torch.load('./template/template_audio_deepspeech.pt')
+
     # import pdb; pdb.set_trace()
     
     def read_video_np(video_path, max_frames=None):
@@ -83,7 +88,7 @@ def generate_video_with_audio(video_path,
         return frames
     
     # video_frames = read_video_np(video_path, max_frames=deepspeech_tensor.shape[0]+10)
-    video_frames = read_video_np(video_path, max_frames=None)
+    video_frames = read_video_np(video_path, max_frames=500)
     print("for test!! video_frames length: ", len(video_frames))
     video_frames = np.array(video_frames, dtype=np.float32)
     video_frames = video_frames[..., ::-1]
@@ -146,24 +151,79 @@ def generate_video_with_audio(video_path,
     
     timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-    def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25):
+    # def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25):
 
+    #     if not os.path.exists(output_dir):
+    #         os.makedirs(output_dir)
+
+    #     processed_clip = ImageSequenceClip([frame for frame in outframes], fps=fps)
+
+    #     audio_clip = AudioFileClip(audio_path)
+
+    #     final_clip = processed_clip.set_audio(audio_clip)
+    #     # import pdb; pdb.set_trace()
+
+    #     final_clip.write_videofile(output_video_path, fps=fps, codec='libx264')
+
+    #     return output_video_path
+
+    def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25):
+        # 确保输出目录存在
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
+        
+        # 设置临时文件路径
+        temp_video_path = os.path.join(output_dir, "temp_video.mp4")
+        temp_frames_path = os.path.join(output_dir, "frames")
 
-        processed_clip = ImageSequenceClip([frame for frame in outframes], fps=fps)
+        # 确保临时帧目录存在
+        if not os.path.exists(temp_frames_path):
+            os.makedirs(temp_frames_path)
 
-        audio_clip = AudioFileClip(audio_path)
+        # 保存帧为图像文件
+        for i, frame in enumerate(outframes):
+            frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # 修改这里，确保颜色是BGR
+            frame_filename = os.path.join(temp_frames_path, f"frame_{i:05d}.png")
+            cv2.imwrite(frame_filename, frame_bgr)
 
-        final_clip = processed_clip.set_audio(audio_clip)
+        # 使用 ffmpeg 将图像序列转换为视频
+        command = [
+            "ffmpeg",
+            "-y",  # 覆盖输出文件
+            "-framerate", str(fps),  # 设置帧率
+            "-i", os.path.join(temp_frames_path, "frame_%05d.png"),  # 输入图像序列
+            "-c:v", "libx264",  # 编码器
+            "-pix_fmt", "yuv420p",  # 像素格式
+            temp_video_path  # 输出视频文件
+        ]
+        subprocess.run(command, check=True)
 
-        final_clip.write_videofile(output_video_path, codec='libx264')
+        # 使用 ffmpeg 将音频和视频合成
+        command = [
+            "ffmpeg",
+            "-y",  # 覆盖输出文件
+            "-i", temp_video_path,  # 输入视频文件
+            "-i", audio_path,  # 输入音频文件
+            "-c:v", "copy",  # 视频流直接复制
+            "-c:a", "aac",  # 音频编码器
+            "-strict", "experimental",  # 使用实验性编码器
+            output_video_path  # 输出视频文件
+        ]
+        subprocess.run(command, check=True)
+
+        # 删除临时文件
+        os.remove(temp_video_path)
+        for filename in os.listdir(temp_frames_path):
+            file_path = os.path.join(temp_frames_path, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        os.rmdir(temp_frames_path)
 
         return output_video_path
     
     video_basename_without_ext = os.path.splitext(os.path.basename(video_path))[0]
     output_video_path = os.path.join(output_dir, f"{timestamp_str}_{video_basename_without_ext}_{output_name}.mp4")
-    return save_video_with_audio(outframes, output_video_path, audio_path, output_dir)
+    return save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25)
 
 
 if __name__ == "__main__":
@@ -175,11 +235,11 @@ if __name__ == "__main__":
     output_dir = './output_video'
     # 设置模型文件路径
     deepspeech_model_path = "../asserts/output_graph.pb"
-    # lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-1/clip_training_256/netG_model_epoch_119.pth"
-    lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-xhs/clip_training_256/checkpoint_epoch_170.pth"
+    lawdnet_model_path = "/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/output/training_model_weight/288-mouth-CrossAttention-only-HDTF/clip_training_256/checkpoint_epoch_170.pth"
+    # lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-xhs/clip_training_256-256无效/checkpoint_epoch_170.pth"
     # lawdnet_model_path = "../template/pretrain_model.pth"
     BatchSize = 20
-    mouthsize = '256'
+    mouthsize = '288'
     gpu_index = 3
     output_name = '256-mouth-CrossAttention-HDTF-bilibili-xhs'
     result_video_path = generate_video_with_audio(video_path, 
