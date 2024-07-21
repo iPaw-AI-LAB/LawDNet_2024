@@ -26,6 +26,15 @@ from models.LawDNet import LawDNet
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"  # 使CUDA错误更易于追踪
 warnings.filterwarnings("ignore")  # 初始化和配置警告过滤，忽略不必要的警告
 
+def convert_video_to_25fps(input_video_path, output_video_path):
+    command = [
+        "ffmpeg",
+        "-i", input_video_path,  # 输入视频文件
+        "-r", "25",  # 设置输出视频帧率为 25 fps
+        output_video_path  # 输出视频文件
+    ]
+    subprocess.run(command, check=True)
+
 def generate_video_with_audio(video_path, 
                               audio_path, 
                               deepspeech_model_path='../asserts/output_graph.pb',
@@ -34,7 +43,9 @@ def generate_video_with_audio(video_path,
                               BatchSize = 20,
                               mouthsize = '288' ,
                               gpu_index = 0,
-                              output_name = '5kp-60standard—epoch120-720P-复现'
+                              output_name = '5kp-60standard—epoch120-720P-复现',
+                              start_time_sec = 0,
+                              max_frames = None,
                               ):
     
     args = ['--mouth_region_size', mouthsize]
@@ -61,6 +72,7 @@ def generate_video_with_audio(video_path,
     print("Extracting DeepSpeech features from audio file...")
     start_time = time.time()
     deepspeech_tensor, _ = extract_deepspeech(audio_path, deepspeech_model_path)
+    # import pdb; pdb.set_trace()
     end_time = time.time()
     print(f"Running time: {end_time - start_time} seconds for extracting DeepSpeech features.")
     torch.save(deepspeech_tensor, './template/template_audio_deepspeech.pt')
@@ -70,10 +82,28 @@ def generate_video_with_audio(video_path,
     # deepspeech_tensor = torch.load('./template/template_audio_deepspeech.pt')
 
     # import pdb; pdb.set_trace()
+
     
-    def read_video_np(video_path, max_frames=None):
+    def read_video_np(video_path, start_time_sec, max_frames):
         assert os.path.exists(video_path), f"Video file not found: {video_path}"
         cap = cv2.VideoCapture(video_path)
+        # 获取视频的帧率
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        print(f"Original FPS: {fps}")
+        
+        # 如果视频帧率不是 25 fps，则进行转换
+        if fps != 25:
+            print("Converting video to 25 fps...")
+            temp_video_path = os.path.splitext(video_path)[0] + "_25fps.mp4"
+            convert_video_to_25fps(video_path, temp_video_path)
+            cap.release()
+            cap = cv2.VideoCapture(temp_video_path)
+            video_path = temp_video_path
+
+        # 计算从第几帧开始读取
+        start_frame = int(start_time_sec * fps)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+
         frames = []
         i = 0
         while True:
@@ -88,7 +118,11 @@ def generate_video_with_audio(video_path,
         return frames
     
     # video_frames = read_video_np(video_path, max_frames=deepspeech_tensor.shape[0]+10)
-    video_frames = read_video_np(video_path, max_frames=500)
+    max_frames = max_frames if max_frames is not None else deepspeech_tensor.shape[0]
+    max_frames_to_read = max(max_frames, deepspeech_tensor.shape[0])
+
+
+    video_frames = read_video_np(video_path, start_time_sec, max_frames_to_read)
     print("for test!! video_frames length: ", len(video_frames))
     video_frames = np.array(video_frames, dtype=np.float32)
     video_frames = video_frames[..., ::-1]
@@ -227,11 +261,12 @@ def generate_video_with_audio(video_path,
 
 
 if __name__ == "__main__":
-    
-    video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps/RD_Radio1_000_gfzcyh.mp4'
-    audio_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps_audio/RD_Radio1_000_gfzcyh.wav'
-    # video_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.mp4'
-    # audio_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.wav'
+    # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/Exp-of-Junli/template/tedliu_远景.mp4'
+    # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps/RD_Radio1_000_gfzcyh.mp4'
+    # audio_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps_audio/RD_Radio1_000_gfzcyh.wav'
+    video_path = './template/卖面包2.mp4'
+
+    audio_path = './template/test_cuc_乡村振兴.wav'
     output_dir = './output_video'
     # 设置模型文件路径
     deepspeech_model_path = "../asserts/output_graph.pb"
@@ -241,7 +276,9 @@ if __name__ == "__main__":
     BatchSize = 20
     mouthsize = '288'
     gpu_index = 3
-    output_name = '256-mouth-CrossAttention-HDTF-bilibili-xhs'
+    output_name = '288-mouth-CrossAttention-HDTF'
+    start_time_sec = 5
+    max_frames = 500
     result_video_path = generate_video_with_audio(video_path, 
                                                   audio_path,
                                                   deepspeech_model_path, 
@@ -250,6 +287,8 @@ if __name__ == "__main__":
                                                   BatchSize,
                                                   mouthsize,
                                                   gpu_index,
-                                                  output_name
+                                                  output_name,
+                                                  start_time_sec,
+                                                  max_frames
                                                   )
     print(f"Generated video with audio at: {result_video_path}")

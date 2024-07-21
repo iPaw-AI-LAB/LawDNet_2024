@@ -3,10 +3,13 @@
 # 该脚本用于分批处理数据集后，将多个数据集文件夹中的内容合并到一个目标文件夹中，为后续的训练做准备。
 # 进入“有用的脚本小工具文件夹”
 # 定义变量
-DATA_DIR="../asserts/training_data_HDTF_25fps_2"
-OUTPUT_DIR="../asserts/training_data_HDTF_25fps"
+DATA_DIR="../asserts/training_data-HDTF-1-2-all"
+OUTPUT_DIR="../asserts/training_data"
 
-# 复制文件
+echo 'DATA_DIR: ' $DATA_DIR
+echo 'OUTPUT_DIR: ' $OUTPUT_DIR
+
+# 复制文件, 真正训练时只需要3个文件夹
 cp -r "$DATA_DIR"/split_video_25fps_crop_face/* "$OUTPUT_DIR"/split_video_25fps_crop_face/
 echo '1 split_video_25fps_crop_face'
 # cp "$DATA_DIR"/split_video_25fps/*.mp4 "$OUTPUT_DIR"/split_video_25fps/
@@ -17,8 +20,8 @@ cp "$DATA_DIR"/split_video_25fps_deepspeech/*.txt "$OUTPUT_DIR"/split_video_25fp
 echo '4 split_video_25fps_deepspeech'
 cp "$DATA_DIR"/split_video_25fps_landmark_openface/*.csv "$OUTPUT_DIR"/split_video_25fps_landmark_openface/
 echo '5 split_video_25fps_landmark_openface'
-cp -r "$DATA_DIR"/split_video_25fps_frame/* "$OUTPUT_DIR"/split_video_25fps_frame/
-echo '6 split_video_25fps_frame'
+# cp -r "$DATA_DIR"/split_video_25fps_frame/* "$OUTPUT_DIR"/split_video_25fps_frame/
+# echo '6 split_video_25fps_frame'
 
 # 生成训练数据
 # ############# 修改training_data 文件夹名字之后 ##########

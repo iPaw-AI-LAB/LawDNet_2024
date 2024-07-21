@@ -7,6 +7,7 @@
 - [ ] 处理数据集的时候，Jinpeng 数据集的 crop face 的长度和 DeepSpeech 长度不一致
 - [ ] 音频的 DeepSpeech 帧数总比视频帧多 3 帧
 - [ ] 对 loss 的权重敏感，尤其是 syncnet_loss，导致震荡严重，但是不影响训练结果
+- [ ] 人头占画面全部时有网格现象，可能是 affine grid 的 align corner搞的鬼，有待实验解决
 
 ### 改进
 
@@ -14,7 +15,6 @@
 - [ ] 用 DeepSpeech PyTorch 来做数据集
 - [ ] 用hubert来提取音频特征，以适应中文场景
 - [ ] 训练数据很重要，目前HDTF训练效果保证稳定，其它数据集不一定，应该是deepspeech音频特征不适应中文
-
 
 
 ## 环境配置
@@ -172,6 +172,8 @@ sh train_sequence_distributed.sh
 3. 请检查torchrun的端口号是否被占用
 4. 若训练效果嘴巴模糊，则增加最后一步的epoch到200以上
 5. decay epoch 和 non decay epoch 数量必须相同，否则会导致学习率为负数
+6. 训练数据很重要，数据集越高清，音频无杂音最好。目前HDTF训练效果保证稳定，其它数据集不一定，应该是deepspeech音频特征不适应中文，不要盲目增加中文数据集，不好的数据集甚至有😡反效果
+7. 本项目取消了BatchNorm层，训练时请把batchsize调小，本实验设为1
 
 
 ## 测试：
