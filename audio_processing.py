@@ -24,18 +24,22 @@ def extract_deepspeech(driving_audio_path,deepspeech_model_path):
     if not os.path.exists(driving_audio_path):
         raise ('wrong audio path :{}'.format(driving_audio_path))
     ds_feature = DSModel.compute_audio_feature(driving_audio_path)
+    print('ds_feature:',ds_feature.shape)
     audio_frame_length = ds_feature.shape[0]
     ds_feature_padding = np.pad(ds_feature, ((2, 2), (0, 0)), mode='edge')
+    print('ds_feature_padding:',ds_feature_padding.shape)
 
 
     deepspeech_tensor_all = torch.zeros(ds_feature.shape[0], ds_feature.shape[1], 5)
     for i in tqdm(range(ds_feature.shape[0]), desc='Processing Audio batches'):
         deepspeech_tensor = torch.from_numpy(ds_feature_padding[i : i+5, :]).permute(1, 0).float()
         deepspeech_tensor_all[i] = deepspeech_tensor
+    # 每5帧音频帧拼接在一起，对应一个视频帧
 
     # 保存
     # torch.save(deepspeech_tensor_all, driving_audio_path.replace('.wav', 'deepspeech_tensor_all.pt'))
-
+    print('deepspeech_tensor_all:',deepspeech_tensor_all.shape)
+    print('audio_frame_length:',audio_frame_length)
     return deepspeech_tensor_all, audio_frame_length
 
 def tts(driving_audio_path, deepspeech_model_path ):

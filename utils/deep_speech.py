@@ -114,9 +114,11 @@ class DeepSpeech():
                     feed_dict={
                         self.input_node_ph: input_vector[np.newaxis, ...],
                         self.input_lengths_ph: [input_vector.shape[0]]})
-            # n 1 29
+            # （视频帧数*2-1， 1， 29
+            print("看这个network_output的shape: ",network_output.shape)
             
-            ds_features = network_output[::2,0,:]
+            ds_features = network_output[::2,0,:] # 音频帧数是50fps，两帧取一次，使其与视频帧数25fps相等，
+            print("看这个ds_features的shape: ",ds_features.shape)
         return ds_features
 
     # def compute_audio_feature(self,audio_path):   
