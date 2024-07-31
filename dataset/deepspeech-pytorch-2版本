@@ -1,0 +1,3 @@
+其中syncnet的是deepspeech pytorch1 ，因为训练syncnet用的是dp1
+
+用于lawdnet推理的是dp2

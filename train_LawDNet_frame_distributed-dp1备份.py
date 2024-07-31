@@ -246,7 +246,7 @@ def train(
         # 设置DistributedSampler
         train_sampler.set_epoch(epoch)
         net_g.train()
-        for iteration, (source_image_data, reference_clip_data, deepspeech_feature_dp1, deepspeech_feature, flag) in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch} / {opt.non_decay + opt.decay}")):
+        for iteration, (source_image_data, reference_clip_data, deepspeech_feature, flag) in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch} / {opt.non_decay + opt.decay}")):
             flag = flag.to(device_id)
             if not (flag.equal(torch.ones(opt.batch_size, 1, device=device_id))):
                 print("Skipping batch with dirty data")

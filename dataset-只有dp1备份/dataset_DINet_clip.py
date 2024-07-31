@@ -121,7 +121,6 @@ class DINetDataset(Dataset):
             return self.zero_sample_with_batch()
 
         source_clip_list, reference_clip_list, deep_speech_list, reference_for_dV = [], [], [], []
-        deep_speech_list_dp2 = []
 
         # 随机选择一个源视频片段作为锚点
         source_anchor = random.sample(range(video_clip_num), 1)[0]
@@ -135,10 +134,7 @@ class DINetDataset(Dataset):
                 
                 # 加载深度语音特征
                 deep_speech_array = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list'][frame_index - 2:frame_index + 3])
-                deep_speech_array_dp2 = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_dp2_list'][frame_index - 2:frame_index + 3])
-
                 deep_speech_list.append(deep_speech_array)
-                deep_speech_list_dp2.append(deep_speech_array_dp2)
 
             except IndexError or KeyError:
                 # 数据索引出错，返回零样本
@@ -147,10 +143,6 @@ class DINetDataset(Dataset):
         # 验证加载的数据有效性
         if not self.check_data_validity(deep_speech_list, (5, 29)):
             print("deep_speech_list 数据无效, path:",video_name)
-            print("source anchor:",source_anchor)
-            return self.zero_sample_with_batch()
-        if not self.check_data_validity(deep_speech_list_dp2, (5, 29)):
-            print("deep_speech_list_dp2 数据无效, path:",video_name)
             print("source anchor:",source_anchor)
             return self.zero_sample_with_batch()
 
@@ -172,7 +164,6 @@ class DINetDataset(Dataset):
         source_clip = np.stack(source_clip_list, 0) # source_clip shape: (5, 468, 360, 3)
         deep_speech_full = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list']) # deep_speech_full shape: (9, 29)
         deep_speech_clip = np.stack(deep_speech_list, 0) # deep_speech_clip shape: (5, 5, 29)
-        deep_speech_clip_dp2 = np.stack(deep_speech_list_dp2, 0)
         reference_clip = np.stack(reference_clip_list, 0) # reference_clip shape: (5, 468, 360, 15)
 
         # import pdb; pdb.set_trace()
@@ -189,11 +180,9 @@ class DINetDataset(Dataset):
         source_clip = torch.from_numpy(source_clip).float().permute(0, 3, 1, 2) # source_clip shape: (5, 3, 468, 360)
         reference_clip = torch.from_numpy(reference_clip).float().permute(0, 3, 1, 2) # reference_clip shape: (5, 15, 468, 360)
         deep_speech_clip = torch.from_numpy(deep_speech_clip).float().permute(0, 2, 1) # deep_speech_clip shape: (5, 29, 5)
-        deep_speech_clip_dp2 = torch.from_numpy(deep_speech_clip_dp2).float().permute(0, 2, 1) # deep_speech_clip shape: (5, 29, 5)
-
         deep_speech_full = torch.from_numpy(deep_speech_full).permute(1, 0) # deep_speech_full shape: (29, 9)
 
-        return source_clip, reference_clip, deep_speech_clip, deep_speech_clip_dp2, deep_speech_full, flag
+        return source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag
 
     def __len__(self):
         # 返回数据集大小

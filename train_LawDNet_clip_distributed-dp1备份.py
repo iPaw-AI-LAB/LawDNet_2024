@@ -301,7 +301,7 @@ def train(
         train_sampler.set_epoch(epoch)
         net_g.train()
         for iteration, data in enumerate(tqdm(training_data_loader, desc=f"Epoch {epoch} of {opt.start_epoch + opt.non_decay + opt.decay + 1}")):
-            source_clip, reference_clip, deep_speech_clip_dp1, deep_speech_clip, deep_speech_full, flag = data
+            source_clip, reference_clip, deep_speech_clip, deep_speech_full, flag = data
             flag = flag.to(device_id)
             # 检查是否有脏数据
             if not (flag.equal(torch.ones(opt.batch_size, 1, device=device_id))):

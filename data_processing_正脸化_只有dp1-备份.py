@@ -192,7 +192,6 @@ def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_pa
         print('generate training json file :{} {}/{}'.format(video_name,video_index+1,len(video_name_list)))
         tem_dic = {}
         deep_speech_feature_path = os.path.join(deep_speech_dir, video_name + '_deepspeech.txt')
-        deep_speech_dp2_feature_path = os.path.join(deep_speech_dir+'_2', video_name + '_deepspeech_dp2.txt')
         if not os.path.exists(deep_speech_feature_path):
             # raise ('wrong path of deep speech')
             print('wrong path of deep speech',"delete video_name:",video_name)
@@ -211,31 +210,8 @@ def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_pa
                 os.remove(file_path)
             # if the file doesn't exist, skip this iteration of the loop
             continue
-
-        if not os.path.exists(deep_speech_dp2_feature_path):
-            # raise ('wrong path of deep speech')
-            print('wrong path of deep speech dp2',"delete video_name:",video_name)
-            
-            # file_path = os.path.join(crop_face_dir, video_name)
-            # if os.path.exists(file_path):
-            #     shutil.rmtree(file_path)
-            # file_path = os.path.join(opt.openface_landmark_dir, video_name+'.csv')
-            # if os.path.exists(file_path):    
-            #     os.remove(file_path)
-            # file_path = os.path.join(opt.video_frame_dir, video_name)
-            # if os.path.exists(file_path):
-            #     shutil.rmtree(file_path)
-            # file_path = os.path.join(opt.source_video_dir, video_name+'.mp4')
-            # if os.path.exists(file_path):  
-            #     os.remove(file_path)
-            # if the file doesn't exist, skip this iteration of the loop
-            continue
-        # else:
-        #     print('deep_speech_dp2_feature_path:',deep_speech_dp2_feature_path)
             
         deep_speech_feature = np.loadtxt(deep_speech_feature_path)
-        deep_speech_dp2_feature = np.loadtxt(deep_speech_dp2_feature_path)
-
         video_clip_dir = os.path.join(crop_face_dir, video_name)
         # 使用列表推导式和os.path.isdir来过滤非目录条目
         clip_name_list = [item for item in os.listdir(video_clip_dir) if os.path.isdir(os.path.join(video_clip_dir, item))]
@@ -263,21 +239,12 @@ def generate_training_json(crop_face_dir,deep_speech_dir,clip_length,res_json_pa
             assert int(float(os.path.basename(frame_path_list[0]).replace('.jpg', ''))) == start_index
             frame_name_list = [video_name + '/' + clip_name + '/' + os.path.basename(item) for item in frame_path_list]
             deep_speech_list = deep_speech_feature[start_index:start_index + clip_length, :].tolist()
-            deep_speech_dp2_list = deep_speech_dp2_feature[start_index:start_index + clip_length, :].tolist()
-
             if len(frame_name_list) != len(deep_speech_list):
                 logging.error(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_name_list)}) does not match deep speech length ({len(deep_speech_list)}).')
                 print(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_name_list)}) does not match deep speech length ({len(deep_speech_list)}).')
-            
-            if len(frame_name_list) != len(deep_speech_dp2_list):
-                logging.error(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_name_list)}) does not match deep speech dp2 length ({len(deep_speech_dp2_list)}).')
-                print(f'Error for video {video_name} in clip {clip_name}: frame list length ({len(frame_name_list)}) does not match deep speech dp2 length ({len(deep_speech_dp2_list)}).')
-
             tem_tem_dic['frame_name_list'] = frame_name_list
             tem_tem_dic['frame_path_list'] = frame_path_list
             tem_tem_dic['deep_speech_list'] = deep_speech_list
-            tem_tem_dic['deep_speech_dp2_list'] = deep_speech_dp2_list
-
             clip_data_list.append(tem_tem_dic)
         tem_dic['video_clip_num'] = video_clip_num
         tem_dic['clip_data_list'] = clip_data_list
@@ -404,8 +371,7 @@ if __name__ == '__main__':
     1 和 6 ，只能选1个
     4 和 7 ，只能选1个
     '''
-    print("开始处理数据，参数如下：")
-    print("本版本为加了deepspeech pytorch2 的json文件生成")
+    print("开始处理数据")
     ##########  step1: extract video frames
     
     if opt.extract_video_frame:

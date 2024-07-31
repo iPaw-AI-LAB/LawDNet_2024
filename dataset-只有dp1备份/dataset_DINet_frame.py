@@ -79,16 +79,6 @@ class DINetDataset(Dataset):
         # source_image_mask = source_image_data.copy()  # 使用smoothmask进行处理的情况可以在这里添加
 
         deepspeech_feature = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list'][source_random_index - 2:source_random_index + 3])
-        # print("deepspeech_feature shape: ", deepspeech_feature.shape)
-        # print("type of deepspeech_feature: ", type(deepspeech_feature))
-        # # print("",type(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_list'][source_random_index - 2:source_random_index + 3]))
-        # print("deepspeech_feature_dp1:", deepspeech_feature)
-
-        deepspeech_feature_dp2 = np.array(self.data_dic[video_name]['clip_data_list'][source_anchor]['deep_speech_dp2_list'][source_random_index - 2:source_random_index + 3])
-        # print("deepspeech_feature_dp2 shape: ", deepspeech_feature_dp2.shape)
-        # print("type of deepspeech_feature_dp2: ", type(deepspeech_feature_dp2))
-        # print("deepspeech_feature_dp2: ", deepspeech_feature_dp2)
-
         reference_frame_data_list = [
             self.preprocess_image(self.data_dic[video_name]['clip_data_list'][anchor]['frame_path_list'][random.choice(range(9))]) 
             for anchor in reference_anchor_list
@@ -103,20 +93,15 @@ class DINetDataset(Dataset):
 
         # 检查深度语音特征形状
         if not self.check_data_validity(deepspeech_feature, (5, 29)):
-            print(f"dp1数据问题：{video_name}, deepspeech_feature形状：{deepspeech_feature.shape}")
-            return self.zeros_sample()
-
-        if not self.check_data_validity(deepspeech_feature_dp2, (5, 29)):
-            print(f"dp2数据问题：{video_name}, deepspeech_feature_dp2形状：{deepspeech_feature_dp2.shape}")
+            print(f"数据问题：{video_name}, deepspeech_feature形状：{deepspeech_feature.shape}")
             return self.zeros_sample()
 
         source_image_data_tensor = torch.tensor(source_image_data).float().permute(2, 0, 1)
         # source_image_mask_tensor = torch.tensor(source_image_mask).float().permute(2, 0, 1)
         reference_clip_data_tensor = torch.tensor(reference_clip_data).float().permute(2, 0, 1)
         deepspeech_feature_tensor = torch.tensor(deepspeech_feature).float().permute(1, 0)
-        deepspeech_feature_tensor_dp2 = torch.tensor(deepspeech_feature_dp2).float().permute(1, 0)
 
-        return source_image_data_tensor, reference_clip_data_tensor, deepspeech_feature_tensor, deepspeech_feature_tensor_dp2, flag
+        return source_image_data_tensor, reference_clip_data_tensor, deepspeech_feature_tensor, flag
 
 
     def __len__(self):

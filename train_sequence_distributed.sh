@@ -54,7 +54,7 @@ export OMP_NUM_THREADS=1
 # conda activate lawdnet
 
 # 定义实验名称
-EXPERIMENT_NAME="288-mouth-CrossAttention-HDTF-jinpeng"
+EXPERIMENT_NAME="288-mouth-CrossAttention-HDTF-jinpeng-dp2-删除静音-测试"
 
 ## 记得迁移文件夹到对应的位置
 
@@ -102,22 +102,22 @@ run_torchrun_and_wait_clip() {
 }
 
 ######## 训练单帧模型，帧分辨率为64x64
-MASTER_PORT="29491"
+MASTER_PORT="28421"
 run_torchrun_and_wait "./config/experiment/config_experiment_frame_64.py" "$EXPERIMENT_NAME" $MASTER_PORT
 echo "finish training 64x64"
 
 # ####### 训练单帧模型，帧分辨率为128x128
-MASTER_PORT="29492"
+MASTER_PORT="29412"
 run_torchrun_and_wait "./config/experiment/config_experiment_frame_128.py" "$EXPERIMENT_NAME" $MASTER_PORT
 echo "finish training 128x128"
 
 ####### 训练单帧模型，帧分辨率为256x256
-MASTER_PORT="29493"
+MASTER_PORT="29413"
 run_torchrun_and_wait "./config/experiment/config_experiment_frame_256.py" "$EXPERIMENT_NAME" $MASTER_PORT
 echo "finish training 256x256"
 
 ######### 训练多帧模型，帧分辨率为256x256
-MASTER_PORT="29494"
+MASTER_PORT="29414"
 run_torchrun_and_wait_clip "./config/experiment/config_experiment_clip_256.py" "$EXPERIMENT_NAME" $MASTER_PORT
 echo "finish training, the experiment name is $EXPERIMENT_NAME"
 
