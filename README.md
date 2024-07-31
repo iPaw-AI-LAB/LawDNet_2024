@@ -166,7 +166,7 @@ sh train_sequence_distributed.sh
 
 ### [wandb 查看训练日志](https://wandb.ai/ai-zhua)
 
-### 容易出错的地方
+### 训练容易出错的地方
 1. 请仔细检查各个训练阶段的config文件
 2. 务必保证coarse to fine 训练，直接训第四步得到的嘴部是模糊的，模型没有办法一步登天
 3. 请检查torchrun的端口号是否被占用
@@ -174,6 +174,9 @@ sh train_sequence_distributed.sh
 5. decay epoch 和 non decay epoch 数量必须相同，否则会导致学习率为负数
 6. 训练数据很重要，数据集越高清，音频无杂音最好。目前HDTF训练效果保证稳定，其它数据集不一定，应该是deepspeech音频特征不适应中文，不要盲目增加中文数据集，不好的数据集甚至有😡反效果
 7. 本项目取消了BatchNorm层，训练时请把batchsize调小，本实验设为1
+8. 使用deepspeech2 pytorch训练时，注意deepspeech2 pytorch无法处理静音数据，遇到静音视频请手动删除
+   1. [deepspeech pytorch 2](https://github.com/iPaw-AI-LAB/deepspeech_pytorch)
+   2. 提取没有经过softmax的deepspeech特征: `python extract_deepspeech_pytorch2.py`
 
 
 ## 测试：
