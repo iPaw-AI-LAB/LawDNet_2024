@@ -13,6 +13,7 @@ asserts/
 Exp-of-Junli/wav2vec2-xls-r-300m-timit-phoneme/
 Exp-of-Junli/template
 Exp-of-Junli/output_video
+Exp-of-Junli/dp2_models/
 
 
 *.pth

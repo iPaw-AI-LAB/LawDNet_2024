@@ -8,6 +8,7 @@
 - [ ] 音频的 DeepSpeech 帧数总比视频帧多 3 帧
 - [ ] 对 loss 的权重敏感，尤其是 syncnet_loss，导致震荡严重，但是不影响训练结果
 - [ ] 人头占画面全部时有网格现象，可能是 affine grid 的 align corner搞的鬼，有待实验解决
+- [ ] DP2 版本的cuda 只能使用0号，待改进
 
 ### 改进
 
