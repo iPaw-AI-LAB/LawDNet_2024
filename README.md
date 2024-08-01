@@ -26,7 +26,7 @@
 **先安装tensorflow, 再安装torch**
 
 ```bash
-conda create --name LawDNet python=3.7
+conda create --name LawDNet python=3.9
 conda activate LawDNet
 pip install tensorflow_gpu-1.15.0-cp37-cp37m-manylinux2010_x86_64.whl
 conda install -c conda-forge ffmpeg
