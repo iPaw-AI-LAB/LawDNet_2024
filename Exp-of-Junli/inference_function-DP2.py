@@ -91,7 +91,7 @@ def generate_video_with_audio(video_path,
 
     end_time = time.time()
     print(f"Running time: {end_time - start_time} seconds for extracting DeepSpeech features.")
-    torch.save(deepspeech_tensor, './template/template_audio_deepspeech.pt')
+    # torch.save(deepspeech_tensor, './template/template_audio_deepspeech.pt')
 
     ## 测试时：直接读取本地deepspeech_tensor
     # print("Loading DeepSpeech features from local file...")
@@ -150,7 +150,12 @@ def generate_video_with_audio(video_path,
     net_g = LawDNet(opt.source_channel, opt.ref_channel, opt.audio_channel, 
                     opt.warp_layer_num, opt.num_kpoints, opt.coarse_grid_size).to(device)
     print(f"Loading LawDNet model from: {lawdnet_model_path}")
+
+    start_time = time.time()
     checkpoint = torch.load(lawdnet_model_path)
+    end_time = time.time()
+    print(f"Lawdnet Model loaded in {end_time - start_time:.6f} seconds")
+
     state_dict = checkpoint['state_dict']['net_g']
     new_state_dict = OrderedDict((k[7:], v) for k, v in state_dict.items())
     net_g.load_state_dict(new_state_dict)
@@ -193,7 +198,12 @@ def generate_video_with_audio(video_path,
         feed_tensor_masked = sqmasker(feed_tensor / 255.0)
         reference_tensor_B = reference_tensor.unsqueeze(0).expand(B, -1, -1, -1, -1).reshape(B, 5 * 3, feed_tensor.shape[2], feed_tensor.shape[3])
         audio_tensor = deepspeech_tensor[i * B:(i + 1) * B].to(device)
+        
+        start_time = time.time()
         output_B = reference(net_g, feed_tensor_masked, reference_tensor_B, audio_tensor).float().clamp_(0, 1)
+        end_time = time.time()
+        print(f"lawdnet 模型纯推理时间 {i} Reference tensor expanded in {end_time - start_time:.6f} seconds")
+
         outframes_B = facealigner.recover(output_B * 255.0, source_tensor, affine_matrix).permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)
         outframes[i * B:(i + 1) * B] = outframes_B
 
@@ -281,7 +291,8 @@ if __name__ == "__main__":
     # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps/RD_Radio1_000_gfzcyh.mp4'
     # audio_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps_audio/RD_Radio1_000_gfzcyh.wav'
     # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data/split_video_25fps/3坐_1_25fps_ntpx5u.mp4'
-    video_path = './template/深锶科技官网模特.mp4'
+    # video_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.mp4'
+    video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data/split_video_25fps/人物52_25fps_nmlcsh.mp4'
 
     audio_path = "./template/青岛3.wav" #'./test_dp2_audio/taylor-20s.wav'
     output_dir = './output_video'
@@ -293,7 +304,7 @@ if __name__ == "__main__":
     # lawdnet_model_path = "../template/pretrain_model.pth"
     BatchSize = 60
     mouthsize = '288'
-    gpu_index = 0
+    gpu_index = 2
     output_name = '288-mouth-CrossAttention-HDTF-jinpeng-dp2_测试'
     start_time_sec = 0 # 原视频的第几秒开始
     max_frames = None

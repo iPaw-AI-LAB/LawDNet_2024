@@ -46,6 +46,7 @@ def run_transcribe(audio_path: str,
                    device: torch.device,
                    precision: int,
                    chunk_size_seconds: float):
+    model.to(device)
     hs = None  # means that the initial RNN hidden states are set to zeros
     all_outs = []
     with torch.no_grad():
@@ -53,7 +54,7 @@ def run_transcribe(audio_path: str,
             spect = spect.contiguous()
             spect = spect.view(1, 1, spect.size(0), spect.size(1))
             spect = spect.to(device)
-            input_sizes = torch.IntTensor([spect.size(3)]).int()
+            input_sizes = torch.IntTensor([spect.size(3)]).to(device).int()
             with autocast(enabled=precision == 16):
                 out_before_softmax, out, output_sizes, hs = model(spect, input_sizes, hs)
                 ###！！
@@ -139,8 +140,8 @@ def transcribe_and_process_audio(audio_path: str, model_path: str, device: torch
         Tensor: deepspeech_tensor_all - Processed DeepSpeech tensor
         Int: audio_frame_length - Length of the audio frame
     """
-    print('Transcribing and processing audio from:', audio_path)
-    print('Using DeepSpeech model at:', model_path)
+    # print('Transcribing and processing audio from:', audio_path)
+    # print('Using DeepSpeech model at:', model_path)
 
     if not os.path.exists(model_path):
         raise FileNotFoundError('Please download the pretrained model of DeepSpeech.')
@@ -149,7 +150,11 @@ def transcribe_and_process_audio(audio_path: str, model_path: str, device: torch
         raise FileNotFoundError('Wrong audio path: {}'.format(audio_path))
 
     # Load model and decoder
+    start_time = time.time()
     model = load_model(device=device, model_path=model_path)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"deepspeech Model loaded in {execution_time:.6f} seconds")
     
     cfg = TranscribeConfig()
     spect_parser = ChunkSpectrogramParser(audio_conf=model.spect_cfg, normalize=True)
@@ -177,20 +182,20 @@ def transcribe_and_process_audio(audio_path: str, model_path: str, device: torch
     ds_feature = ds_features_all[0][::2].numpy()
 
 
-    print('ds_feature:', ds_feature.shape)
+    # print('ds_feature:', ds_feature.shape)
     audio_frame_length = ds_feature.shape[0]
     
     # Post-processing
     ds_feature_padding = np.pad(ds_feature, ((2, 2), (0, 0)), mode='edge')
-    print('ds_feature_padding:', ds_feature_padding.shape)
+    # print('ds_feature_padding:', ds_feature_padding.shape)
 
     deepspeech_tensor_all = torch.zeros(ds_feature.shape[0], ds_feature.shape[1], 5)
     for i in tqdm(range(ds_feature.shape[0]), desc='Processing Audio batches'):
         deepspeech_tensor = torch.from_numpy(ds_feature_padding[i : i + 5, :]).permute(1, 0).float()
         deepspeech_tensor_all[i] = deepspeech_tensor
 
-    print('deepspeech_tensor_all:', deepspeech_tensor_all.shape)
-    print('audio_frame_length:', audio_frame_length)
+    # print('deepspeech_tensor_all:', deepspeech_tensor_all.shape)
+    # print('audio_frame_length:', audio_frame_length)
 
     return deepspeech_tensor_all, audio_frame_length
 
