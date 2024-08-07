@@ -1,4 +1,4 @@
-# deepspeech 需要 python 3.7
+# deepspeech2 需要 python 3.9
 # tensorflow_gpu-1.15.0-cp37-cp37m-manylinux2010_x86_64.whl
 # 从 百度网盘下载
 # 链接: https://pan.baidu.com/s/1PHNBADRh0inPlodKrGa76w?pwd=djl6 提取码: djl6 

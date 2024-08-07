@@ -189,17 +189,18 @@ sh train_sequence_distributed.sh
 
 - **video_path**: 输入视频文件的路径。
 - **audio_path**: 输入音频文件的路径。
-- **deepspeech_model_path**: DeepSpeech 模型文件的路径（`output_graph.pb`）。
+- ~~**deepspeech_model_path**: DeepSpeech 模型文件的路径（`output_graph.pb`）。~~
 - **lawdnet_model_path**: 预训练 LawDNet 模型文件的路径（`checkpoint_epoch_120.pth`）。
 - **output_dir**: 保存输出视频的目录。
 - **BatchSize**: 处理视频帧的批处理大小。
 - **mouthsize**: 处理的嘴部区域大小（例如 `288`）。
 - **gpu_index**: 使用的GPU索引（设置为 `-1` 表示使用CPU）。
 - **output_name**: 输出视频文件的自定义名称。
+- **dp2_model_path**: deepspeech2 pytorch 模型 `LibriSpeech_Pretrained_v3.ckpt`
 
 ``` sh
 cd ./Exp-of-Junli/ 
-python inference_function.py
+python inference_function-DP2.py
 ```
 
 ```./Exp-of-Junli/optimized-prediction-deng.ipynb # 方便单步调试看中间结果```
