@@ -17,7 +17,7 @@ from config.config import DINetTrainingOptions
 from torchlm.tools import faceboxesv2
 from torchlm.models import pipnet
 from tensor_processing import SmoothSqMask, FaceAlign
-from audio_processing import extract_deepspeech
+# from audio_processing import extract_deepspeech
 from extract_deepspeech_pytorch2 import transcribe_and_process_audio
 
 
@@ -40,7 +40,7 @@ def convert_video_to_25fps(input_video_path, output_video_path):
 
 def generate_video_with_audio(video_path, 
                               audio_path, 
-                              deepspeech_model_path='../asserts/output_graph.pb',
+                            #   deepspeech_model_path='../asserts/output_graph.pb',
                               lawdnet_model_path='../output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-shengshu/clip_training_256/checkpoint_epoch_120.pth',
                               output_dir='./output_video',
                               BatchSize = 20,
@@ -49,6 +49,7 @@ def generate_video_with_audio(video_path,
                               output_name = '5kp-60standard—epoch120-720P-复现',
                               start_time_sec = 0,
                               max_frames = None,
+                              dp2_path = './dp2_models/LibriSpeech_Pretrained_v3.ckpt',
                               ):
     
     args = ['--mouth_region_size', mouthsize]
@@ -78,7 +79,7 @@ def generate_video_with_audio(video_path,
     # print("deepspeech_tensor shape: ", deepspeech_tensor.shape)
     # import pdb; pdb.set_trace()
 
-    model_path = './dp2_models/LibriSpeech_Pretrained_v3.ckpt'
+    model_path = dp2_path
     precision = 16
 
     deepspeech_tensor, _ = transcribe_and_process_audio(
@@ -135,7 +136,7 @@ def generate_video_with_audio(video_path,
     
     # video_frames = read_video_np(video_path, max_frames=deepspeech_tensor.shape[0]+10)
     max_frames = max_frames if max_frames is not None else deepspeech_tensor.shape[0]
-    max_frames_to_read = min(max_frames, deepspeech_tensor.shape[0])
+    max_frames_to_read = min(max_frames, deepspeech_tensor.shape[0]) + 50 # 读取视频帧的最大数量
 
 
     video_frames = read_video_np(video_path, start_time_sec, max_frames_to_read)
@@ -198,7 +199,6 @@ def generate_video_with_audio(video_path,
         feed_tensor_masked = sqmasker(feed_tensor / 255.0)
         reference_tensor_B = reference_tensor.unsqueeze(0).expand(B, -1, -1, -1, -1).reshape(B, 5 * 3, feed_tensor.shape[2], feed_tensor.shape[3])
         audio_tensor = deepspeech_tensor[i * B:(i + 1) * B].to(device)
-        
         start_time = time.time()
         output_B = reference(net_g, feed_tensor_masked, reference_tensor_B, audio_tensor).float().clamp_(0, 1)
         end_time = time.time()
@@ -287,17 +287,17 @@ def generate_video_with_audio(video_path,
 
 
 if __name__ == "__main__":
-    # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/Exp-of-Junli/template/tedliu_远景.mp4'
+    video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/Exp-of-Junli/template/tedliu_远景_25fps.mp4'
     # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps/RD_Radio1_000_gfzcyh.mp4'
     # audio_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps_audio/RD_Radio1_000_gfzcyh.wav'
     # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data/split_video_25fps/3坐_1_25fps_ntpx5u.mp4'
     # video_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.mp4'
-    video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data/split_video_25fps/人物52_25fps_nmlcsh.mp4'
+    # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data/split_video_25fps/人物52_25fps_nmlcsh.mp4'
 
     audio_path = "./template/青岛3.wav" #'./test_dp2_audio/taylor-20s.wav'
     output_dir = './output_video'
     # 设置模型文件路径
-    deepspeech_model_path = "../asserts/output_graph.pb"
+    # deepspeech_model_path = "../asserts/output_graph.pb"
     # lawdnet_model_path = "/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/output/training_model_weight/288-mouth-CrossAttention-HDTF-jinpeng/clip_training_256/checkpoint_epoch_170.pth"
     lawdnet_model_path = "/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/output/training_model_weight/288-mouth-CrossAttention-HDTF-jinpeng-dp2-删除静音-测试/clip_training_256/checkpoint_epoch_170.pth"
     # lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-xhs/clip_training_256-256无效/checkpoint_epoch_170.pth"
@@ -306,6 +306,8 @@ if __name__ == "__main__":
     mouthsize = '288'
     gpu_index = 2
     output_name = '288-mouth-CrossAttention-HDTF-jinpeng-dp2_测试'
+    dp2_path = './dp2_models/LibriSpeech_Pretrained_v3.ckpt'
+    
     start_time_sec = 0 # 原视频的第几秒开始
     max_frames = None
 
@@ -313,7 +315,7 @@ if __name__ == "__main__":
 
     result_video_path = generate_video_with_audio(video_path, 
                                                   audio_path,
-                                                  deepspeech_model_path, 
+                                                #   deepspeech_model_path, 
                                                   lawdnet_model_path,
                                                   output_dir,
                                                   BatchSize,
@@ -321,7 +323,8 @@ if __name__ == "__main__":
                                                   gpu_index,
                                                   output_name,
                                                   start_time_sec,
-                                                  max_frames
+                                                  max_frames,
+                                                  dp2_path
                                                   )
     print(f"Generated video with audio at: {result_video_path}")
 

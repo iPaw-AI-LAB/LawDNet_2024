@@ -16,7 +16,7 @@
 
 from flask import Flask, request, send_file
 import os
-from inference_function import generate_video_with_audio
+from inference_function-DP2 import generate_video_with_audio
 
 app = Flask(__name__)
 

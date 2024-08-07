@@ -1,0 +1,36 @@
+# deepspeech 需要 python 3.7
+# tensorflow_gpu-1.15.0-cp37-cp37m-manylinux2010_x86_64.whl
+# 从 百度网盘下载
+# 链接: https://pan.baidu.com/s/1PHNBADRh0inPlodKrGa76w?pwd=djl6 提取码: djl6 
+
+opencv-python
+torch
+torchvision
+matplotlib
+resampy
+scipy
+python_speech_features
+tqdm
+protobuf==3.20.0 # 注意版本！
+torchlm
+moviepy
+## deepspeech-pytorch
+flask
+hydra-core
+jupyter
+librosa
+matplotlib
+numpy
+optuna
+pytest
+python-levenshtein
+pytorch-lightning>=1.7.0
+scipy
+scikit-learn
+sox
+torch
+torchaudio
+torchelastic
+tqdm
+wget
+git+https://github.com/romesco/hydra-lightning/#subdirectory=hydra-configs-pytorch-lightning
