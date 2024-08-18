@@ -190,7 +190,7 @@ sh train_sequence_distributed.sh
 - **video_path**: 输入视频文件的路径。
 - **audio_path**: 输入音频文件的路径。
 - ~~**deepspeech_model_path**: DeepSpeech 模型文件的路径（`output_graph.pb`）。~~
-- **lawdnet_model_path**: 预训练 LawDNet 模型文件的路径（`checkpoint_epoch_120.pth`）。
+- **lawdnet_model_path**: 预训练 LawDNet 模型文件的路径（`checkpoint_epoch_170.pth`）。
 - **output_dir**: 保存输出视频的目录。
 - **BatchSize**: 处理视频帧的批处理大小。
 - **mouthsize**: 处理的嘴部区域大小（例如 `288`）。
@@ -218,7 +218,8 @@ python inference_function_DP2.py
 
 ```sh
 cd Exp-of-Junli;
-python server_LawDNet.py
+python server_LawDNet.py # 执行 server
+python client_LawDNet.py # 发送音频文件到指定端口，触发 server
 ```
 
 ## 参数列表
