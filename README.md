@@ -185,7 +185,7 @@ sh train_sequence_distributed.sh
 下载预训练模型，测试视频：[百度网盘](https://pan.baidu.com/s/1FFINqyyz2to96_-A7QhhHA?pwd=ipaw) 提取码: ipaw 
 
 ~~修改``` inference_function.py ``` 里面的参数：~~
-修改``` inference_function-dp2.py ``` 里面的参数：
+修改``` inference_function_dp2.py ``` 里面的参数：
 
 - **video_path**: 输入视频文件的路径。
 - **audio_path**: 输入音频文件的路径。
@@ -200,7 +200,7 @@ sh train_sequence_distributed.sh
 
 ``` sh
 cd ./Exp-of-Junli/ 
-python inference_function-DP2.py
+python inference_function_DP2.py
 ```
 
 ```./Exp-of-Junli/optimized-prediction-deng.ipynb # 方便单步调试看中间结果```
@@ -208,6 +208,8 @@ python inference_function-DP2.py
 ```./Exp-of-Junli/inference_function.py # 修改模型路径，数字人视频，音频```
 
 ```./Exp-of-Junli/server_LawDNet.py # 提供server服务```
+
+```./Exp-of-Junli/client_LawDNet.py # 提供发送音频的 client 服务```
 
 ## server服务
 生成视频并发送到指定端口

@@ -287,7 +287,7 @@ def generate_video_with_audio(video_path,
 
 
 if __name__ == "__main__":
-    video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/Exp-of-Junli/template/tedliu_远景_25fps.mp4'
+    video_path = './template/douyin绿幕数字人女.mp4'
     # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps/RD_Radio1_000_gfzcyh.mp4'
     # audio_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps_audio/RD_Radio1_000_gfzcyh.wav'
     # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data/split_video_25fps/3坐_1_25fps_ntpx5u.mp4'
