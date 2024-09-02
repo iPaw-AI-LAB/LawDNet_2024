@@ -10,7 +10,7 @@ def send_audio_file(audio_file_path):
             print("视频生成成功，下载链接:", response.url)
             with open("output_video.mp4", "wb") as f:
                 f.write(response.content)
-            print("视频已保存为 output_video.mp4")
+            print("视频已保存为 ./output_video.mp4")
         else:
             print("视频生成失败，状态码:", response.status_code)
             print("错误信息:", response.text)
@@ -18,7 +18,7 @@ def send_audio_file(audio_file_path):
         print("请求失败:", e)
 
 if __name__ == '__main__':
-    audio_file_path = "./template/青岛3.wav"  # 替换为你的音频文件路径
+    audio_file_path = "./data/青岛3.wav"  # 替换为你的音频文件路径
     print("音频文件路径:", audio_file_path)
     print("开始上传音频文件...")
     send_audio_file(audio_file_path)

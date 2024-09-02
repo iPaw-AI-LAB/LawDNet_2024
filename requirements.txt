@@ -8,6 +8,7 @@ torch
 torchvision
 matplotlib
 resampy
+ffmpy
 scipy
 python_speech_features
 tqdm

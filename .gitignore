@@ -59,6 +59,9 @@ log/
 *.npy
 *.txt
 *.mov
+**/*.ckpt
+**/*.pth
+
 
 
 

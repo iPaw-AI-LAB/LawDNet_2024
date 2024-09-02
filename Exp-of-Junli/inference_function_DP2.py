@@ -21,6 +21,7 @@ from tensor_processing import SmoothSqMask, FaceAlign
 from extract_deepspeech_pytorch2 import transcribe_and_process_audio
 
 
+
 from moviepy.editor import VideoFileClip, ImageSequenceClip, AudioFileClip
 
 # 项目特定的模块
@@ -246,30 +247,44 @@ def generate_video_with_audio(video_path,
             frame_filename = os.path.join(temp_frames_path, f"frame_{i:05d}.png")
             cv2.imwrite(frame_filename, frame_bgr)
 
-        # 使用 ffmpeg 将图像序列转换为视频
-        command = [
-            "ffmpeg",
-            "-y",  # 覆盖输出文件
-            "-framerate", str(fps),  # 设置帧率
-            "-i", os.path.join(temp_frames_path, "frame_%05d.png"),  # 输入图像序列
-            "-c:v", "libx264",  # 编码器
-            "-pix_fmt", "yuv420p",  # 像素格式
-            temp_video_path  # 输出视频文件
-        ]
-        subprocess.run(command, check=True)
+        # # 使用 ffmpeg 将图像序列转换为视频
+        # command = [
+        #     "ffmpeg",
+        #     "-y",  # 覆盖输出文件
+        #     "-framerate", str(fps),  # 设置帧率
+        #     "-i", os.path.join(temp_frames_path, "frame_%05d.png"),  # 输入图像序列
+        #     "-c:v", "libx264",  # 编码器
+        #     "-pix_fmt", "yuv420p",  # 像素格式
+        #     temp_video_path  # 输出视频文件
+        # ]
+        # subprocess.run(command, check=True)
 
-        # 使用 ffmpeg 将音频和视频合成
-        command = [
-            "ffmpeg",
-            "-y",  # 覆盖输出文件
-            "-i", temp_video_path,  # 输入视频文件
-            "-i", audio_path,  # 输入音频文件
-            "-c:v", "copy",  # 视频流直接复制
-            "-c:a", "aac",  # 音频编码器
-            "-strict", "experimental",  # 使用实验性编码器
-            output_video_path  # 输出视频文件
-        ]
-        subprocess.run(command, check=True)
+        # # 使用 ffmpeg 将音频和视频合成
+        # command = [
+        #     "ffmpeg",
+        #     "-y",  # 覆盖输出文件
+        #     "-i", temp_video_path,  # 输入视频文件
+        #     "-i", audio_path,  # 输入音频文件
+        #     "-c:v", "copy",  # 视频流直接复制
+        #     "-c:a", "aac",  # 音频编码器
+        #     "-strict", "experimental",  # 使用实验性编码器
+        #     output_video_path  # 输出视频文件
+        # ]
+        # subprocess.run(command, check=True)
+
+        # 使用 moviepy 将图像序列转换为视频
+        # 计算图像序列的总帧数
+        num_frames = len([f for f in os.listdir(temp_frames_path) if f.endswith('.png')])
+        image_files = [os.path.join(temp_frames_path, f"frame_{i:05d}.png") for i in range(0, num_frames)]
+        video_clip = ImageSequenceClip(image_files, fps=fps)
+        video_clip.write_videofile(temp_video_path, codec='libx264', audio=False)
+
+        # 使用 moviepy 将音频和视频合成
+        video_clip = VideoFileClip(temp_video_path)
+        audio_clip = AudioFileClip(audio_path)
+        final_clip = video_clip.set_audio(audio_clip)
+        final_clip.write_videofile(output_video_path, codec='libx264', audio_codec='aac')
+
 
         # 删除临时文件
         os.remove(temp_video_path)

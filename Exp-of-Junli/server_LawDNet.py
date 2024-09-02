@@ -44,18 +44,18 @@ def process_audio_and_generate_video(audio_path):
 
     print("audio_path: ", audio_path)
 
-    video_path = './template/douyin绿幕数字人女.mp4' #所使用的数字人模特
+    video_path = './data/douyin绿幕数字人女.mp4' #所使用的数字人模特
     output_dir = './output_video'
     # 设置模型文件路径
     deepspeech_model_path = "../asserts/output_graph.pb"
     # lawdnet_model_path =  "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-2/clip_training_256/checkpoint_epoch_120.pth"
     # lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-shengshu/clip_training_256/checkpoint_epoch_599.pth"
-    lawdnet_model_path = "/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/output/training_model_weight/288-mouth-CrossAttention-HDTF-jinpeng-dp2-删除静音-测试/clip_training_256/checkpoint_epoch_170.pth"
+    lawdnet_model_path = "./pretrain_model/checkpoint_epoch_170.pth"
     
-    BatchSize = 20
+    BatchSize = 24
     mouthsize = '288'
     gpu_index = 0
-    dp2_path = './dp2_models/LibriSpeech_Pretrained_v3.ckpt'
+    dp2_path = './pretrain_model/LibriSpeech_Pretrained_v3.ckpt'
     output_name = 'output_video'
     start_time_sec = 0
     max_frames = None # None表示处理整个视频    
