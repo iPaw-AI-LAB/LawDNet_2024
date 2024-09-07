@@ -30,6 +30,59 @@ from models.LawDNet import LawDNet
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"  # 使CUDA错误更易于追踪
 warnings.filterwarnings("ignore")  # 初始化和配置警告过滤，忽略不必要的警告
 
+def read_video_np(video_path, start_time_sec, max_frames=None):
+    assert os.path.exists(video_path), f"Video file not found: {video_path}"
+    cap = cv2.VideoCapture(video_path)
+    # 获取视频的帧率
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    print(f"Original FPS: {fps}")
+    
+    # 如果视频帧率不是 25 fps，则进行转换
+    if fps != 25:
+        print("Converting video to 25 fps...")
+        temp_video_path = os.path.splitext(video_path)[0] + "_25fps.mp4"
+        convert_video_to_25fps(video_path, temp_video_path)
+        cap.release()
+        cap = cv2.VideoCapture(temp_video_path)
+        video_path = temp_video_path
+
+    # 计算从第几帧开始读取
+    start_frame = int(start_time_sec * fps)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+
+    frames = []
+    i = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frames.append(frame)
+        i += 1
+        if max_frames is not None and i >= max_frames:
+            break
+    cap.release()
+    return frames
+
+
+def save_video_frames(video_path, start_time_sec, max_frames, output_dir):
+    frames = read_video_np(video_path, start_time_sec, max_frames)
+    np.save(os.path.join(output_dir, 'video_frames.npy'), frames)
+    print(f"视频帧已保存到: {os.path.join(output_dir, 'video_frames.npy')}")
+    return frames
+
+def load_video_frames(output_dir):
+    frames_path = os.path.join(output_dir, 'video_frames.npy')
+    if os.path.exists(frames_path):
+        print(f"从本地加载视频帧: {frames_path}")
+        return np.load(frames_path)
+    else:
+        print("未找到本地保存的视频帧")
+        return None
+
+def reference(model, masked_source, reference, audio_tensor):
+    with torch.no_grad():
+        return model(masked_source, reference, audio_tensor)
+
 def convert_video_to_25fps(input_video_path, output_video_path):
     command = [
         "ffmpeg",
@@ -38,6 +91,98 @@ def convert_video_to_25fps(input_video_path, output_video_path):
         output_video_path  # 输出视频文件
     ]
     subprocess.run(command, check=True)
+
+def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25):
+    # 确保输出目录存在
+    os.makedirs(output_dir,exist_ok=True)
+    
+    # 设置临时文件路径
+    temp_video_path = os.path.join(output_dir, "temp_video.mp4")
+    temp_frames_path = os.path.join(output_dir, "frames")
+
+    # 确保临时帧目录存在
+    if not os.path.exists(temp_frames_path):
+        os.makedirs(temp_frames_path)
+
+    # 保存帧为图像文件
+    for i, frame in enumerate(outframes):
+        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # 修改这里，确保颜色是BGR
+        frame_filename = os.path.join(temp_frames_path, f"frame_{i:05d}.png")
+        cv2.imwrite(frame_filename, frame_bgr)
+
+    # # 使用 ffmpeg 将图像序列转换为视频
+    # command = [
+    #     "ffmpeg",
+    #     "-y",  # 覆盖输出文件
+    #     "-framerate", str(fps),  # 设置帧率
+    #     "-i", os.path.join(temp_frames_path, "frame_%05d.png"),  # 输入图像序列
+    #     "-c:v", "libx264",  # 编码器
+    #     "-pix_fmt", "yuv420p",  # 像素格式
+    #     temp_video_path  # 输出视频文件
+    # ]
+    # subprocess.run(command, check=True)
+
+    # # 使用 ffmpeg 将音频和视频合成
+    # command = [
+    #     "ffmpeg",
+    #     "-y",  # 覆盖输出文件
+    #     "-i", temp_video_path,  # 输入视频文件
+    #     "-i", audio_path,  # 输入音频文件
+    #     "-c:v", "copy",  # 视频流直接复制
+    #     "-c:a", "aac",  # 音频编码器
+    #     "-strict", "experimental",  # 使用实验性编码器
+    #     output_video_path  # 输出视频文件
+    # ]
+    # subprocess.run(command, check=True)
+
+    # 使用 moviepy 将图像序列转换为视频
+    # 计算图像序列的总帧数
+    num_frames = len([f for f in os.listdir(temp_frames_path) if f.endswith('.png')])
+    image_files = [os.path.join(temp_frames_path, f"frame_{i:05d}.png") for i in range(0, num_frames)]
+    video_clip = ImageSequenceClip(image_files, fps=fps)
+    video_clip.write_videofile(temp_video_path, codec='libx264', audio=False)
+
+    # 使用 moviepy 将音频和视频合成
+    video_clip = VideoFileClip(temp_video_path)
+    audio_clip = AudioFileClip(audio_path)
+    final_clip = video_clip.set_audio(audio_clip)
+    final_clip.write_videofile(output_video_path, codec='libx264', audio_codec='aac')
+
+
+    # 删除临时文件
+    os.remove(temp_video_path)
+    for filename in os.listdir(temp_frames_path):
+        file_path = os.path.join(temp_frames_path, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+    os.rmdir(temp_frames_path)
+
+    return output_video_path
+
+def save_landmarks(video_frames, output_dir, device):
+
+    torchlm.runtime.bind(faceboxesv2(device=device))
+    torchlm.runtime.bind(pipnet(backbone="resnet18", pretrained=True, num_nb=10, num_lms=68, net_stride=32,
+                                input_size=256, meanface_type="300w", map_location=device.__str__()))
+
+    landmarks_path = os.path.join(output_dir, 'landmarks.npy')
+    if os.path.exists(landmarks_path):
+        print(f"从本地加载 landmarks: {landmarks_path}")
+        return np.load(landmarks_path)
+    
+    print("提取并保存 landmarks...")
+    landmarks_list = []
+    for frame in tqdm(video_frames, desc='处理视频帧，提取 landmarks...'):
+        landmarks, bboxes = torchlm.runtime.forward(frame)
+        highest_trust_index = np.argmax(bboxes[:, 4])
+        most_trusted_landmarks = landmarks[highest_trust_index]
+        landmarks_list.append(most_trusted_landmarks)
+    
+    landmarks_array = np.array(landmarks_list)
+    np.save(landmarks_path, landmarks_array)
+    print(f"Landmarks 已保存到: {landmarks_path}")
+    return landmarks_array
+
 
 def generate_video_with_audio(video_path, 
                               audio_path, 
@@ -55,13 +200,16 @@ def generate_video_with_audio(video_path,
     
     args = ['--mouth_region_size', mouthsize]
     opt = DINetTrainingOptions().parse_args(args)
+
+    if torch.cuda.is_available():
+        print("GPU is available")
     
     if torch.cuda.is_available() and gpu_index >= 0 and torch.cuda.device_count() > gpu_index:
         device = f'cuda:{gpu_index}'
         print(f"Using GPU: {gpu_index}")
     else:
         device = 'cpu'
-        print("Using CPU")
+        print("Using CPU or gpu_index is exceeded")
     
     random.seed(opt.seed + gpu_index)
     np.random.seed(opt.seed + gpu_index)
@@ -90,7 +238,6 @@ def generate_video_with_audio(video_path,
         precision=precision
     )
 
-
     end_time = time.time()
     print(f"Running time: {end_time - start_time} seconds for extracting DeepSpeech features.")
     # torch.save(deepspeech_tensor, './template/template_audio_deepspeech.pt')
@@ -99,49 +246,13 @@ def generate_video_with_audio(video_path,
     # print("Loading DeepSpeech features from local file...")
     # deepspeech_tensor = torch.load('./template/template_audio_deepspeech.pt')
 
-    # import pdb; pdb.set_trace()
+    os.makedirs(output_dir,exist_ok=True)
+    video_frames = load_video_frames(output_dir)
+    if video_frames is None:
+        max_frames = max_frames if max_frames is not None else deepspeech_tensor.shape[0]
+        max_frames_to_read = min(max_frames, deepspeech_tensor.shape[0]) + 50 # 读取视频帧的最大数量
+        video_frames = save_video_frames(video_path, start_time_sec, max_frames_to_read, output_dir)
 
-    
-    def read_video_np(video_path, start_time_sec, max_frames):
-        assert os.path.exists(video_path), f"Video file not found: {video_path}"
-        cap = cv2.VideoCapture(video_path)
-        # 获取视频的帧率
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        print(f"Original FPS: {fps}")
-        
-        # 如果视频帧率不是 25 fps，则进行转换
-        if fps != 25:
-            print("Converting video to 25 fps...")
-            temp_video_path = os.path.splitext(video_path)[0] + "_25fps.mp4"
-            convert_video_to_25fps(video_path, temp_video_path)
-            cap.release()
-            cap = cv2.VideoCapture(temp_video_path)
-            video_path = temp_video_path
-
-        # 计算从第几帧开始读取
-        start_frame = int(start_time_sec * fps)
-        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-
-        frames = []
-        i = 0
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            frames.append(frame)
-            i += 1
-            if max_frames is not None and i >= max_frames:
-                break
-        cap.release()
-        return frames
-    
-    # video_frames = read_video_np(video_path, max_frames=deepspeech_tensor.shape[0]+10)
-    max_frames = max_frames if max_frames is not None else deepspeech_tensor.shape[0]
-    max_frames_to_read = min(max_frames, deepspeech_tensor.shape[0]) + 50 # 读取视频帧的最大数量
-
-
-    video_frames = read_video_np(video_path, start_time_sec, max_frames_to_read)
-    print("video_frames length: ", len(video_frames))
     video_frames = np.array(video_frames, dtype=np.float32)
     video_frames = video_frames[..., ::-1]
     
@@ -166,20 +277,8 @@ def generate_video_with_audio(video_path,
     facealigner = FaceAlign(ratio=1.6, device=device)
     sqmasker = SmoothSqMask(device=device).to(device)
     
-    torchlm.runtime.bind(faceboxesv2(device=device))
-    torchlm.runtime.bind(pipnet(backbone="resnet18", pretrained=True, num_nb=10, num_lms=68, net_stride=32,
-                                input_size=256, meanface_type="300w", map_location=device.__str__()))
-    
-    landmarks, _ = torchlm.runtime.forward(video_frames[0])
-    landmarks_list = []
-
-    for frame in tqdm(video_frames, desc='Processing video frames, extracting landmarks...'):
-        landmarks, bboxes = torchlm.runtime.forward(frame)
-        highest_trust_index = np.argmax(bboxes[:, 4])
-        most_trusted_landmarks = landmarks[highest_trust_index]
-        landmarks_list.append(most_trusted_landmarks)
-
-    landmarks_list = np.array(landmarks_list)
+    # 加载或提取 landmarks
+    landmarks_list = save_landmarks(video_frames, output_dir, device)
     
     reference_index = torch.randint(0, len(video_frames), (5,)).tolist()
     reference_tensor = torch.tensor(video_frames[reference_index], dtype=torch.float).to(device)
@@ -187,10 +286,6 @@ def generate_video_with_audio(video_path,
     reference_landmarks = torch.tensor(landmarks_list[reference_index], dtype=torch.float).to(device)
     reference_tensor, _, _ = facealigner(reference_tensor, reference_landmarks, out_W=out_W)
     reference_tensor = reference_tensor / 255.0
-    
-    def reference(model, masked_source, reference, audio_tensor):
-        with torch.no_grad():
-            return model(masked_source, reference, audio_tensor)
 
     outframes = np.zeros_like(video_frames)
     for i in tqdm(range(len_out // B), desc="Processing batches"):
@@ -211,90 +306,6 @@ def generate_video_with_audio(video_path,
     outframes = outframes.astype(np.uint8)
     
     timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-    # def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25):
-
-    #     if not os.path.exists(output_dir):
-    #         os.makedirs(output_dir)
-
-    #     processed_clip = ImageSequenceClip([frame for frame in outframes], fps=fps)
-
-    #     audio_clip = AudioFileClip(audio_path)
-
-    #     final_clip = processed_clip.set_audio(audio_clip)
-    #     # import pdb; pdb.set_trace()
-
-    #     final_clip.write_videofile(output_video_path, fps=fps, codec='libx264')
-
-    #     return output_video_path
-
-    def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25):
-        # 确保输出目录存在
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        
-        # 设置临时文件路径
-        temp_video_path = os.path.join(output_dir, "temp_video.mp4")
-        temp_frames_path = os.path.join(output_dir, "frames")
-
-        # 确保临时帧目录存在
-        if not os.path.exists(temp_frames_path):
-            os.makedirs(temp_frames_path)
-
-        # 保存帧为图像文件
-        for i, frame in enumerate(outframes):
-            frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # 修改这里，确保颜色是BGR
-            frame_filename = os.path.join(temp_frames_path, f"frame_{i:05d}.png")
-            cv2.imwrite(frame_filename, frame_bgr)
-
-        # # 使用 ffmpeg 将图像序列转换为视频
-        # command = [
-        #     "ffmpeg",
-        #     "-y",  # 覆盖输出文件
-        #     "-framerate", str(fps),  # 设置帧率
-        #     "-i", os.path.join(temp_frames_path, "frame_%05d.png"),  # 输入图像序列
-        #     "-c:v", "libx264",  # 编码器
-        #     "-pix_fmt", "yuv420p",  # 像素格式
-        #     temp_video_path  # 输出视频文件
-        # ]
-        # subprocess.run(command, check=True)
-
-        # # 使用 ffmpeg 将音频和视频合成
-        # command = [
-        #     "ffmpeg",
-        #     "-y",  # 覆盖输出文件
-        #     "-i", temp_video_path,  # 输入视频文件
-        #     "-i", audio_path,  # 输入音频文件
-        #     "-c:v", "copy",  # 视频流直接复制
-        #     "-c:a", "aac",  # 音频编码器
-        #     "-strict", "experimental",  # 使用实验性编码器
-        #     output_video_path  # 输出视频文件
-        # ]
-        # subprocess.run(command, check=True)
-
-        # 使用 moviepy 将图像序列转换为视频
-        # 计算图像序列的总帧数
-        num_frames = len([f for f in os.listdir(temp_frames_path) if f.endswith('.png')])
-        image_files = [os.path.join(temp_frames_path, f"frame_{i:05d}.png") for i in range(0, num_frames)]
-        video_clip = ImageSequenceClip(image_files, fps=fps)
-        video_clip.write_videofile(temp_video_path, codec='libx264', audio=False)
-
-        # 使用 moviepy 将音频和视频合成
-        video_clip = VideoFileClip(temp_video_path)
-        audio_clip = AudioFileClip(audio_path)
-        final_clip = video_clip.set_audio(audio_clip)
-        final_clip.write_videofile(output_video_path, codec='libx264', audio_codec='aac')
-
-
-        # 删除临时文件
-        os.remove(temp_video_path)
-        for filename in os.listdir(temp_frames_path):
-            file_path = os.path.join(temp_frames_path, filename)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        os.rmdir(temp_frames_path)
-
-        return output_video_path
     
     video_basename_without_ext = os.path.splitext(os.path.basename(video_path))[0]
     output_video_path = os.path.join(output_dir, f"{timestamp_str}_{video_basename_without_ext}_{output_name}.mp4")
@@ -302,26 +313,18 @@ def generate_video_with_audio(video_path,
 
 
 if __name__ == "__main__":
-    video_path = './template/douyin绿幕数字人女.mp4'
-    # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps/RD_Radio1_000_gfzcyh.mp4'
-    # audio_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data_HDTF_25fps_2/split_video_25fps_audio/RD_Radio1_000_gfzcyh.wav'
-    # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data/split_video_25fps/3坐_1_25fps_ntpx5u.mp4'
-    # video_path = './template/109刘锎宇一棵开花的树25fps_wz94b3.mp4'
-    # video_path = '/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/asserts/training_data/split_video_25fps/人物52_25fps_nmlcsh.mp4'
-
-    audio_path = "./template/青岛3.wav" #'./test_dp2_audio/taylor-20s.wav'
+    video_path = './data/douyin绿幕数字人女.mp4'
+    audio_path = "./data/青岛3.wav" 
     output_dir = './output_video'
     # 设置模型文件路径
     # deepspeech_model_path = "../asserts/output_graph.pb"
-    # lawdnet_model_path = "/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/output/training_model_weight/288-mouth-CrossAttention-HDTF-jinpeng/clip_training_256/checkpoint_epoch_170.pth"
-    lawdnet_model_path = "/pfs/mt-1oY5F7/luoyihao/project/DJL/LawDNet_2024/output/training_model_weight/288-mouth-CrossAttention-HDTF-jinpeng-dp2-删除静音-测试/clip_training_256/checkpoint_epoch_170.pth"
-    # lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-HDTF-bilibili-xhs/clip_training_256-256无效/checkpoint_epoch_170.pth"
-    # lawdnet_model_path = "../template/pretrain_model.pth"
-    BatchSize = 60
+    lawdnet_model_path = "./pretrain_model/checkpoint_epoch_170.pth"
+
+    BatchSize = 20
     mouthsize = '288'
-    gpu_index = 2
-    output_name = '288-mouth-CrossAttention-HDTF-jinpeng-dp2_测试'
-    dp2_path = './dp2_models/LibriSpeech_Pretrained_v3.ckpt'
+    gpu_index = 0
+    output_name = '速度测试'
+    dp2_path = './pretrain_model/LibriSpeech_Pretrained_v3.ckpt'
     
     start_time_sec = 0 # 原视频的第几秒开始
     max_frames = None

@@ -47,7 +47,7 @@ def process_audio_and_generate_video(audio_path):
     video_path = './data/douyin绿幕数字人女.mp4' #所使用的数字人模特
     output_dir = './output_video'
     # 设置模型文件路径
-    deepspeech_model_path = "../asserts/output_graph.pb"
+    # deepspeech_model_path = "../asserts/output_graph.pb"
     # lawdnet_model_path =  "/home/dengjunli/data/dengjunli/autodl拿过来的/DINet-update/output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-2/clip_training_256/checkpoint_epoch_120.pth"
     # lawdnet_model_path = "../output/training_model_weight/288-mouth-CrossAttention-插值coarse-to-fine-shengshu/clip_training_256/checkpoint_epoch_599.pth"
     lawdnet_model_path = "./pretrain_model/checkpoint_epoch_170.pth"
