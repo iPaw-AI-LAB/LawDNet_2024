@@ -12,6 +12,11 @@ from config.config import DINetTrainingOptions
 from models.LawDNet import LawDNet
 from tensor_processing import SmoothSqMask, FaceAlign
 from extract_deepspeech_pytorch2 import transcribe_and_process_audio
+
+from deepspeech_pytorch.utils import load_decoder, load_model
+from deepspeech_pytorch.configs.inference_config import TranscribeConfig, LMConfig
+from deepspeech_pytorch.loader.data_loader import ChunkSpectrogramParser
+
 import cv2
 from moviepy.editor import VideoFileClip, AudioFileClip
 import time
@@ -39,27 +44,54 @@ reference_tensor = None
 all_feed_tensor_masked = None
 all_source_tensor = None
 all_affine_matrix = None
+
 dp2_path = None
+dp2_model = None
+cfg = None
+spect_parser = None
+decoder = None
+
 output_dir = None
 B = None
+
 
 def initialize_server():
     global device, net_g, opt, facealigner, sqmasker, video_frames, landmarks_list
     global reference_tensor, all_feed_tensor_masked, all_source_tensor, all_affine_matrix
-    global dp2_path, output_dir
+    global dp2_path, dp2_model, cfg, spect_parser, decoder, output_dir
     global B 
 
     # 设置参数
-    B = 40  
-    video_path = './data/douyin_Green_screen_figure_woman.mp4'
+    B = 5  
+    video_path = './data/figure_five_two.mp4' 
+    video_name = os.path.splitext(os.path.basename(video_path))[0]
     lawdnet_model_path = "./pretrain_model/checkpoint_epoch_170.pth"
     mouthsize = '288'
     gpu_index = 0
     dp2_path = './pretrain_model/LibriSpeech_Pretrained_v3.ckpt'
     output_dir = './output_video'
-
-    # 设置设备
     device = f'cuda:{gpu_index}' if torch.cuda.is_available() and gpu_index >= 0 else 'cpu'
+
+    '''
+    dp2
+    '''
+    if not os.path.exists(dp2_path):
+        raise FileNotFoundError('Please download the pretrained model of DeepSpeech.')
+    
+    dp2_model = load_model(device=device, model_path=dp2_path)
+    print("正在加载 DeepSpeech pytorch 2 模型...")
+
+    cfg = TranscribeConfig()
+    spect_parser = ChunkSpectrogramParser(audio_conf=dp2_model.spect_cfg, normalize=True)
+    decoder = load_decoder(
+        labels=dp2_model.labels,
+        cfg=cfg.lm  
+    )
+
+    dp2_model.eval()
+    '''
+    dp2
+    '''
 
     # 初始化模型配置
     args = ['--mouth_region_size', mouthsize]
@@ -83,7 +115,7 @@ def initialize_server():
     facealigner = FaceAlign(ratio=1.6, device=device)
     sqmasker = SmoothSqMask(device=device).to(device)
     
-    preprocessed_data_path = os.path.join(output_dir, 'preprocessed_data.pth')
+    preprocessed_data_path = os.path.join(output_dir, f'{video_name}_preprocessed_data.pth')
     if os.path.exists(preprocessed_data_path):
         print("从本地加载预处理数据...")
         preprocessed_data = torch.load(preprocessed_data_path)
@@ -99,7 +131,11 @@ def initialize_server():
         all_affine_matrix = preprocess_data(video_frames, 
                                             landmarks_list, 
                                             opt, 
-                                            device)
+                                            B,
+                                            output_dir,
+                                            video_path,
+                                            device
+                                            )
         torch.save({
             'reference_tensor': reference_tensor.cpu(),
             'all_feed_tensor_masked': all_feed_tensor_masked.cpu(),
@@ -130,11 +166,17 @@ def generate_video():
     audio_file.save(audio_path)
 
     # 提取 DeepSpeech 特征
+
+    
     deepspeech_tensor, _ = transcribe_and_process_audio(
         audio_path=audio_path,
         model_path=dp2_path,
         device=device,
-        precision=16
+        precision=16,
+        model=dp2_model,
+        cfg=cfg,
+        spect_parser=spect_parser,
+        decoder=decoder
     )
 
     # 生成视频
@@ -144,8 +186,6 @@ def generate_video():
 
 def generate_video_with_audio(deepspeech_tensor, audio_path):
     global reference_tensor, all_feed_tensor_masked, all_source_tensor, all_affine_matrix
-
-    B = 40
     
     len_out = min(len(video_frames), deepspeech_tensor.shape[0]) // B * B
     deepspeech_tensor = deepspeech_tensor[:len_out].to(device)

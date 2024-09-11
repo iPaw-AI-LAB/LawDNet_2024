@@ -128,8 +128,16 @@ def process_audio_folder(audio_folder: str, model_path: str, output_folder: str,
     print(f"Log saved to {log_file_path}")
 
 
-
-def transcribe_and_process_audio(audio_path: str, model_path: str, device: torch.device, precision: int = 16):
+# 这个函数是用来处理音频的，包括预处理和特征提取
+def transcribe_and_process_audio(audio_path: str, 
+                                 model_path: str, 
+                                 device: torch.device, 
+                                 precision: int = 16,
+                                 model: DeepSpeech = None,
+                                 cfg: TranscribeConfig = None,
+                                 spect_parser: ChunkSpectrogramParser = None,
+                                 decoder: Decoder = None
+                                 ):
     """
     input: 
         Str: audio_path - Path to the audio file
@@ -143,27 +151,27 @@ def transcribe_and_process_audio(audio_path: str, model_path: str, device: torch
     # print('Transcribing and processing audio from:', audio_path)
     # print('Using DeepSpeech model at:', model_path)
 
-    if not os.path.exists(model_path):
-        raise FileNotFoundError('Please download the pretrained model of DeepSpeech.')
+    # if not os.path.exists(model_path):
+    #     raise FileNotFoundError('Please download the pretrained model of DeepSpeech.')
 
-    if not os.path.exists(audio_path):
-        raise FileNotFoundError('Wrong audio path: {}'.format(audio_path))
+    # if not os.path.exists(audio_path):
+    #     raise FileNotFoundError('Wrong audio path: {}'.format(audio_path))
 
-    # Load model and decoder
-    start_time = time.time()
-    model = load_model(device=device, model_path=model_path)
-    end_time = time.time()
-    execution_time = end_time - start_time
-    print(f"deepspeech Model loaded in {execution_time:.6f} seconds")
+    # # Load model and decoder
+    # start_time = time.time()
+    # model = load_model(device=device, model_path=model_path)
+    # end_time = time.time()
+    # execution_time = end_time - start_time
+    # print(f"deepspeech Model loaded in {execution_time:.6f} seconds")
     
-    cfg = TranscribeConfig()
-    spect_parser = ChunkSpectrogramParser(audio_conf=model.spect_cfg, normalize=True)
-    decoder = load_decoder(
-        labels=model.labels,
-        cfg=cfg.lm
-    )
+    # cfg = TranscribeConfig()
+    # spect_parser = ChunkSpectrogramParser(audio_conf=model.spect_cfg, normalize=True)
+    # decoder = load_decoder(
+    #     labels=model.labels,
+    #     cfg=cfg.lm
+    # )
 
-    model.eval()
+    # model.eval()
 
     # Check and resample audio if necessary
     audio_path = check_and_resample_audio(audio_path, target_sample_rate=16000)

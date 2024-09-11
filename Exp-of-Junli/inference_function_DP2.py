@@ -20,6 +20,10 @@ from tensor_processing import SmoothSqMask, FaceAlign
 # from audio_processing import extract_deepspeech
 from extract_deepspeech_pytorch2 import transcribe_and_process_audio
 
+from deepspeech_pytorch.utils import load_decoder, load_model
+from deepspeech_pytorch.configs.inference_config import TranscribeConfig, LMConfig
+from deepspeech_pytorch.loader.data_loader import ChunkSpectrogramParser
+
 
 
 from moviepy.editor import VideoFileClip, ImageSequenceClip, AudioFileClip
@@ -231,11 +235,30 @@ def generate_video_with_audio(video_path,
     model_path = dp2_path
     precision = 16
 
+    if not os.path.exists(dp2_path):
+        raise FileNotFoundError('Please download the pretrained model of DeepSpeech.')
+    
+    dp2_model = load_model(device=device, model_path=dp2_path)
+    print("正在加载 DeepSpeech pytorch 2 模型...")
+
+    cfg = TranscribeConfig()
+    spect_parser = ChunkSpectrogramParser(audio_conf=dp2_model.spect_cfg, normalize=True)
+    decoder = load_decoder(
+        labels=dp2_model.labels,
+        cfg=cfg.lm  
+    )
+
+    dp2_model.eval()
+
     deepspeech_tensor, _ = transcribe_and_process_audio(
         audio_path=audio_path,
         model_path=model_path,
         device=device,
-        precision=precision
+        precision=precision,
+        model=dp2_model,
+        cfg=cfg,
+        spect_parser=spect_parser,
+        decoder=decoder
     )
 
     end_time = time.time()
@@ -313,7 +336,7 @@ def generate_video_with_audio(video_path,
 
 
 if __name__ == "__main__":
-    video_path = './data/douyin绿幕数字人女.mp4'
+    video_path = './data/figure_five_two.mp4'
     audio_path = "./data/青岛3.wav" 
     output_dir = './output_video'
     # 设置模型文件路径

@@ -20,6 +20,10 @@ from tensor_processing import SmoothSqMask, FaceAlign
 # from audio_processing import extract_deepspeech
 from extract_deepspeech_pytorch2 import transcribe_and_process_audio
 
+from deepspeech_pytorch.utils import load_decoder, load_model
+from deepspeech_pytorch.configs.inference_config import TranscribeConfig, LMConfig
+from deepspeech_pytorch.loader.data_loader import ChunkSpectrogramParser
+
 from moviepy.editor import VideoFileClip, ImageSequenceClip, AudioFileClip
 
 # 项目特定的模块
@@ -37,7 +41,8 @@ warnings.filterwarnings("ignore")  # 初始化和配置警告过滤，忽略不�
 #         return result
 #     return wrapper
 
-def preprocess_data(video_frames, landmarks_list, opt, B, device):
+def preprocess_data(video_frames, landmarks_list, opt, B, output_dir, video_path, device):
+    video_name = os.path.splitext(os.path.basename(video_path))[0]
     preprocess_start = time.time()
     
     out_W = int(opt.mouth_region_size * 1.25)
@@ -49,7 +54,7 @@ def preprocess_data(video_frames, landmarks_list, opt, B, device):
     sqmasker = SmoothSqMask(device=device).to(device)
     
     # 检查是否存在预处理后的张量文件
-    preprocessed_data_path = os.path.join(output_dir, 'preprocessed_data.pth')
+    preprocessed_data_path = os.path.join(output_dir, f'{video_name}_preprocessed_data.pth')
     if os.path.exists(preprocessed_data_path):
         print("从本地加载预处理数据...")
         preprocessed_data = torch.load(preprocessed_data_path)
@@ -289,6 +294,8 @@ def generate_video_with_audio(video_frames,
                                             landmarks_list, 
                                             opt, 
                                             B, 
+                                            output_dir,
+                                            video_path,
                                             device)
         
         # 保存预处理后的数据
@@ -338,11 +345,12 @@ def generate_video_with_audio(video_frames,
 if __name__ == "__main__":
     # 设置参数
     total_start_time = time.time()
-    video_path = './data/douyin_Green_screen_figure_woman.mp4'
-    audio_path = "./data/青岛3.wav" 
+    video_path = './data/figure_five_two.mp4'
+    # audio_path = "./data/青岛3.wav" 
+    audio_path = "../../Chat_TTS/test_success.wav" 
     output_dir = './output_video'
     lawdnet_model_path = "./pretrain_model/checkpoint_epoch_170.pth"
-    BatchSize = 40
+    BatchSize = 5
     mouthsize = '288'
     gpu_index = 0
     output_name = '速度测试'
@@ -374,11 +382,31 @@ if __name__ == "__main__":
     
     # 提取 DeepSpeech 特征
     deepspeech_start_time = time.time()
+
+    if not os.path.exists(dp2_path):
+        raise FileNotFoundError('Please download the pretrained model of DeepSpeech.')
+    
+    dp2_model = load_model(device=device, model_path=dp2_path)
+    print("正在加载 DeepSpeech pytorch 2 模型...")
+
+    cfg = TranscribeConfig()
+    spect_parser = ChunkSpectrogramParser(audio_conf=dp2_model.spect_cfg, normalize=True)
+    decoder = load_decoder(
+        labels=dp2_model.labels,
+        cfg=cfg.lm  
+    )
+
+    dp2_model.eval()
+
     deepspeech_tensor, _ = transcribe_and_process_audio(
         audio_path=audio_path,
         model_path=dp2_path,
         device=device,
-        precision=precision
+        precision=precision,
+        model=dp2_model,
+        cfg=cfg,
+        spect_parser=spect_parser,
+        decoder=decoder
     )
     deepspeech_end_time = time.time()
     print(f"DeepSpeech 耗时: {deepspeech_end_time - deepspeech_start_time:.2f} 秒") 
