@@ -192,7 +192,7 @@ sh train_sequence_distributed.sh
 4090 上，视频推理速度和音频 1:1，拼接成视频的过程占 9s 左右
 
 
-##### LawDNet 视频生成server使用说明
+#### LawDNet 视频生成server使用说明
 
 ```
 cd ./Exp-of-Junli # 进入实验文件夹
@@ -200,24 +200,7 @@ cd ./Exp-of-Junli # 进入实验文件夹
 
 本系统包含三个主要Python文件:server_faster.py、inference_function_DP2.py和client_faster.py。以下是每个文件的功能和使用方法:
 
-###### 1. server_faster.py
-
-这是系统的服务器端程序。
-
-功能:
-- 初始化并加载所需的模型和数据
-- 提供HTTP接口,接收客户端的音频文件并生成对应的视频
-
-使用方法:
-1. 确保已安装所有必要的依赖库
-2. 修改文件中的相关路径,如模型路径、输出目录等
-3. 运行命令:
-   ```
-   python server_faster.py
-   ```
-4. 等待所有模型和模特数据加载完成后，服务器将在本地`5000`端口启动
-
-###### 2. inference_function_DP2.py
+##### 1. inference_function_DP2.py
 
 这个文件包含了视频生成的核心功能和辅助函数。
 
@@ -232,7 +215,23 @@ cd ./Exp-of-Junli # 进入实验文件夹
   python inference_function_DP2.py
   ```
 
-1. client_faster.py
+##### 2. server_faster.py
+
+这是系统的服务器端程序。
+
+功能:
+- 初始化并加载所需的模型和数据
+- 提供HTTP接口,接收客户端的音频文件并生成对应的视频
+
+使用方法:
+1. 修改文件中的相关路径,如模型路径、输出目录等
+2. 运行命令:
+   ```
+   python server_faster.py
+   ```
+3. 等待所有模型和模特数据加载完成后，服务器将在本地`5000`端口启动
+
+##### 3. client_faster.py
 
 这是客户端程序,用于向服务器`server_faster.py`发送音频文件并接收生成的视频。
 
