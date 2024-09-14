@@ -181,8 +181,88 @@ sh train_sequence_distributed.sh
 
 
 ## 测试：
-
 下载预训练模型，测试视频：[百度网盘](https://pan.baidu.com/s/1FFINqyyz2to96_-A7QhhHA?pwd=ipaw) 提取码: ipaw 
+
+#### 新版速度快
+
+优化中间过程，提前保存特定人的 landmark，frame， renference_image_tensor到本地，使用时直接读取
+
+如果是新送入的视频，第一次执行会保存以上内容到本地，第二次之后则直接从本地读取，以加快执行速度
+
+4090 上，视频推理速度和音频 1:1，拼接成视频的过程占 9s 左右
+
+
+##### LawDNet 视频生成server使用说明
+
+```
+cd ./Exp-of-Junli # 进入实验文件夹
+```
+
+本系统包含三个主要Python文件:server_faster.py、inference_function_DP2.py和client_faster.py。以下是每个文件的功能和使用方法:
+
+###### 1. server_faster.py
+
+这是系统的服务器端程序。
+
+功能:
+- 初始化并加载所需的模型和数据
+- 提供HTTP接口,接收客户端的音频文件并生成对应的视频
+
+使用方法:
+1. 确保已安装所有必要的依赖库
+2. 修改文件中的相关路径,如模型路径、输出目录等
+3. 运行命令:
+   ```
+   python server_faster.py
+   ```
+4. 等待所有模型和模特数据加载完成后，服务器将在本地`5000`端口启动
+
+###### 2. inference_function_DP2.py
+
+这个文件包含了视频生成的核心功能和辅助函数。
+
+功能:
+- 提供视频帧处理、特征提取、模型推理等功能
+- 包含视频生成的主要逻辑
+
+使用方法:
+- 这个文件通常不需要直接运行,它被server_faster.py调用
+- 如果需要单独测试,可以修改文件末尾的main函数,然后运行:
+  ```
+  python inference_function_DP2.py
+  ```
+
+1. client_faster.py
+
+这是客户端程序,用于向服务器`server_faster.py`发送音频文件并接收生成的视频。
+
+功能:
+- 向服务器发送音频文件
+- 接收并保存服务器生成的视频
+
+使用方法:
+1. 确保服务器(server_faster.py)已经运行
+2. 修改audio_file_path变量,指向您要使用的音频文件
+3. 如果需要,修改server_url变量以匹配服务器地址
+4. 运行命令:
+   ```
+   python client_faster.py
+   ```
+5. 程序将发送音频文件,并将接收到的视频保存为`./generated_video.mp4`
+
+注意事项:
+
+1. 请确保已安装所有必要的Python库,如Flask、torch、numpy等
+2. 运行服务器前,请检查并修改所有相关的文件路径
+3. 生成的视频质量和处理时间可能会因硬件配置而异
+4. 建议在GPU环境下运行以获得更好的性能
+
+
+
+
+
+
+#### 旧版速度慢
 
 ~~修改``` inference_function.py ``` 里面的参数：~~
 修改``` inference_function_dp2.py ``` 里面的参数：

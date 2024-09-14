@@ -179,8 +179,6 @@ def convert_video_to_25fps(input_video_path, output_video_path):
 
 
 def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25):
-    # start_time = time.time()
-
     # 确保输出目录存在
     os.makedirs(output_dir, exist_ok=True)
     
@@ -198,27 +196,41 @@ def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(temp_video_path, fourcc, fps, (width, height))
     
-    # write_start = time.time()
     for frame in outframes_bgr:
         out.write(frame.astype(np.uint8))
     out.release()
-    # write_end = time.time()
-    # print(f"写入视频帧耗时: {write_end - write_start:.2f} 秒")
 
-    # 使用 moviepy 将音频和视频合成
-    # merge_start = time.time()
-    video_clip = VideoFileClip(temp_video_path)
-    audio_clip = AudioFileClip(audio_path)
-    final_clip = video_clip.set_audio(audio_clip)
-    final_clip.write_videofile(output_video_path, codec='libx264', audio_codec='aac')
-    # merge_end = time.time()
-    # print(f"合成音频视频耗时: {merge_end - merge_start:.2f} 秒")
+    # 尝试使用 ffmpeg
+    try:
+        ffmpeg_command = [
+            "ffmpeg",
+            "-i", temp_video_path,
+            "-i", audio_path,
+            "-c:v", "libx264",
+            "-c:a", "aac",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
+            output_video_path
+        ]
+        subprocess.run(ffmpeg_command, check=True)
+        print("使用 ffmpeg 成功合并视频和音频")
+    except Exception as e:
+        print(f"ffmpeg 失败: {e}")
+        print("尝试使用 moviepy...")
+        try:
+            from moviepy.editor import VideoFileClip, AudioFileClip
+            video_clip = VideoFileClip(temp_video_path)
+            audio_clip = AudioFileClip(audio_path)
+            final_clip = video_clip.set_audio(audio_clip)
+            final_clip.write_videofile(output_video_path, codec='libx264', audio_codec='aac')
+            print("使用 moviepy 成功合并视频和音频")
+        except Exception as e:
+            print(f"moviepy 也失败了: {e}")
+            raise Exception("无法合并视频和音频")
 
     # 删除临时文件
     os.remove(temp_video_path)
-
-    # end_time = time.time()
-    # print(f"save_video_with_audio 总耗时: {end_time - start_time:.2f} 秒")
 
     return output_video_path
 
@@ -346,8 +358,8 @@ if __name__ == "__main__":
     # 设置参数
     total_start_time = time.time()
     video_path = './data/figure_five_two.mp4'
-    # audio_path = "./data/青岛3.wav" 
-    audio_path = "../../Chat_TTS/test_success.wav" 
+    audio_path = "./data/青岛3.wav" 
+    # audio_path = "../../Chat_TTS/test_success.wav" 
     output_dir = './output_video'
     lawdnet_model_path = "./pretrain_model/checkpoint_epoch_170.pth"
     BatchSize = 5
