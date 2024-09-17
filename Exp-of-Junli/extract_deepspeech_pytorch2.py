@@ -1,9 +1,9 @@
 import os
 import numpy as np
 import torch
-from torch.cuda.amp import autocast
+from torch.amp import autocast
 from deepspeech_pytorch.decoder import Decoder
-from deepspeech_pytorch.loader.data_loader import ChunkSpectrogramParser
+from deepspeech_pytorch.loader.data_loader import ChunkSpectrogramParser, ChunkSpectrogramParserOfAudioData
 from deepspeech_pytorch.model import DeepSpeech
 from deepspeech_pytorch.utils import load_decoder, load_model
 from deepspeech_pytorch.configs.inference_config import TranscribeConfig, LMConfig
@@ -55,7 +55,7 @@ def run_transcribe(audio_path: str,
             spect = spect.view(1, 1, spect.size(0), spect.size(1))
             spect = spect.to(device)
             input_sizes = torch.IntTensor([spect.size(3)]).to(device).int()
-            with autocast(enabled=precision == 16):
+            with autocast(device_type=str(device), enabled=(precision == 16)):
                 out_before_softmax, out, output_sizes, hs = model(spect, input_sizes, hs)
                 ###！！
                 # print("需要还没经过softmax的，代码还没改")
@@ -63,6 +63,26 @@ def run_transcribe(audio_path: str,
     all_outs = torch.cat(all_outs, axis=1)  # combine outputs of chunks in one tensor
     decoded_output, decoded_offsets = decoder.decode(all_outs)
     return all_outs, decoded_output
+
+def run_transcribe_tensor(audio: np.ndarray,
+                          spect_parser: ChunkSpectrogramParserOfAudioData,
+                          model: DeepSpeech,
+                          device: torch.device,
+                          precision: int,
+                          chunk_size_seconds: float):
+    all_outs = []
+    hs = None  # means that the initial RNN hidden states are set to zeros
+    with torch.no_grad():
+        for spect in spect_parser.parse_audio(audio, chunk_size_seconds):
+            spect = spect.contiguous()
+            spect = spect.view(1, 1, spect.size(0), spect.size(1))
+            spect = spect.to(device)
+            input_sizes = torch.IntTensor([spect.size(3)]).to(device).int()
+            with autocast(device_type=str(device), enabled=(precision == 16)):
+                out_before_softmax, out, output_sizes, hs = model(spect, input_sizes, hs)
+            all_outs.append(out_before_softmax.cpu())
+    all_outs = torch.cat(all_outs, axis=1)  # combine outputs of chunks in one tensor
+    return all_outs
 
 def process_audio_folder(audio_folder: str, model_path: str, output_folder: str, log_file_path: str, device: torch.device, precision: int):
     print('Processing audio folder:', audio_folder)
@@ -207,6 +227,35 @@ def transcribe_and_process_audio(audio_path: str,
 
     return deepspeech_tensor_all, audio_frame_length
 
+def transcribe_audio_data(audio: torch.Tensor, model: DeepSpeech, precision: int = 16, device: torch.device = None):
+    spect_parser = ChunkSpectrogramParserOfAudioData(audio_conf=model.spect_cfg, normalize=True)
+
+    ds_features_all = run_transcribe_tensor(
+        audio=audio,
+        spect_parser=spect_parser,
+        model=model,
+        device=device, 
+        precision=precision,
+        chunk_size_seconds=-1)
+
+    ds_feature = ds_features_all[0][::2].numpy()
+
+    # print('ds_feature:', ds_feature.shape)
+    audio_frame_length = ds_feature.shape[0]
+    
+    # Post-processing
+    ds_feature_padding = np.pad(ds_feature, ((2, 2), (0, 0)), mode='edge')
+    # print('ds_feature_padding:', ds_feature_padding.shape)
+
+    deepspeech_tensor_all = torch.zeros(ds_feature.shape[0], ds_feature.shape[1], 5)
+    for i in tqdm(range(ds_feature.shape[0]), desc='Processing Audio batches'):
+        deepspeech_tensor = torch.from_numpy(ds_feature_padding[i : i + 5, :]).permute(1, 0).float()
+        deepspeech_tensor_all[i] = deepspeech_tensor
+
+    # print('deepspeech_tensor_all:', deepspeech_tensor_all.shape)
+    # print('audio_frame_length:', audio_frame_length)
+
+    return deepspeech_tensor_all, audio_frame_length
 
 if __name__ == "__main__":
     # Manually specify the parameters
