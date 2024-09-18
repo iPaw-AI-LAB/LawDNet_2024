@@ -41,7 +41,13 @@ warnings.filterwarnings("ignore")  # 初始化和配置警告过滤，忽略不�
 #         return result
 #     return wrapper
 
-def preprocess_data(video_frames, landmarks_list, opt, B, output_dir, video_path, device):
+def preprocess_data(video_frames, 
+                    #landmarks_list, 
+                    opt, 
+                    B, 
+                    output_dir, 
+                    video_path, 
+                    device):
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     preprocess_start = time.time()
     
@@ -68,6 +74,8 @@ def preprocess_data(video_frames, landmarks_list, opt, B, output_dir, video_path
         reference_index = torch.randint(0, len(video_frames), (5,)).tolist()
         reference_tensor = torch.tensor(video_frames[reference_index], dtype=torch.float).to(device)
         reference_tensor = reference_tensor.permute(0, 3, 1, 2)
+
+        landmarks_list = save_landmarks(video_frames, video_path, output_dir, device)
         reference_landmarks = torch.tensor(landmarks_list[reference_index], dtype=torch.float).to(device)
         
         reference_tensor, _, _ = facealigner(reference_tensor, reference_landmarks, out_W=out_W)
@@ -200,33 +208,34 @@ def save_video_with_audio(outframes, output_video_path, audio_path, output_dir, 
         out.write(frame.astype(np.uint8))
     out.release()
 
-    # 尝试使用 ffmpeg
+    # 首先尝试使用 moviepy
     try:
-        ffmpeg_command = [
-            "ffmpeg",
-            "-i", temp_video_path,
-            "-i", audio_path,
-            "-c:v", "libx264",
-            "-c:a", "aac",
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-shortest",
-            output_video_path
-        ]
-        subprocess.run(ffmpeg_command, check=True)
-        print("使用 ffmpeg 成功合并视频和音频")
-    except Exception as e:
-        print(f"ffmpeg 失败: {e}")
         print("尝试使用 moviepy...")
+        from moviepy.editor import VideoFileClip, AudioFileClip
+        video_clip = VideoFileClip(temp_video_path)
+        audio_clip = AudioFileClip(audio_path)
+        final_clip = video_clip.set_audio(audio_clip)
+        final_clip.write_videofile(output_video_path, codec='libx264', audio_codec='aac')
+        print("使用 moviepy 成功合并视频和音频")
+    except Exception as e:
+        print(f"moviepy 失败: {e}")
+        print("尝试使用 ffmpeg...")
         try:
-            from moviepy.editor import VideoFileClip, AudioFileClip
-            video_clip = VideoFileClip(temp_video_path)
-            audio_clip = AudioFileClip(audio_path)
-            final_clip = video_clip.set_audio(audio_clip)
-            final_clip.write_videofile(output_video_path, codec='libx264', audio_codec='aac')
-            print("使用 moviepy 成功合并视频和音频")
+            ffmpeg_command = [
+                "ffmpeg",
+                "-i", temp_video_path,
+                "-i", audio_path,
+                "-c:v", "libx264",
+                "-c:a", "aac",
+                "-map", "0:v:0",
+                "-map", "1:a:0",
+                "-shortest",
+                output_video_path
+            ]
+            subprocess.run(ffmpeg_command, check=True)
+            print("使用 ffmpeg 成功合并视频和音频")
         except Exception as e:
-            print(f"moviepy 也失败了: {e}")
+            print(f"ffmpeg 也失败了: {e}")
             raise Exception("无法合并视频和音频")
 
     # 删除临时文件
@@ -261,7 +270,7 @@ def save_landmarks(video_frames, video_path, output_dir, device):
 
 
 def generate_video_with_audio(video_frames, 
-                              landmarks_list,
+                              #landmarks_list,
                               deepspeech_tensor,
                               audio_path, 
                               net_g,
@@ -303,7 +312,7 @@ def generate_video_with_audio(video_frames,
         all_feed_tensor_masked, \
         all_source_tensor, \
         all_affine_matrix = preprocess_data(video_frames, 
-                                            landmarks_list, 
+                                            #landmarks_list, 
                                             opt, 
                                             B, 
                                             output_dir,
@@ -390,7 +399,7 @@ if __name__ == "__main__":
     video_frames = np.array(video_frames, dtype=np.float32)
     video_frames = video_frames[..., ::-1]
     
-    landmarks_list = save_landmarks(video_frames, video_path, output_dir, device)
+    # landmarks_list = save_landmarks(video_frames, video_path, output_dir, device)
     
     # 提取 DeepSpeech 特征
     deepspeech_start_time = time.time()
@@ -425,7 +434,7 @@ if __name__ == "__main__":
 
     # 生成视频
     result_video_path = generate_video_with_audio(video_frames, 
-                                                  landmarks_list,
+                                                  #landmarks_list,
                                                   deepspeech_tensor,
                                                   audio_path, 
                                                   net_g,

@@ -56,13 +56,13 @@ B = None
 
 
 def initialize_server():
-    global device, net_g, opt, facealigner, sqmasker, video_frames, landmarks_list
+    global device, net_g, opt, facealigner, sqmasker, video_frames, video_frames_length, video_frames_shape,landmarks_list
     global reference_tensor, all_feed_tensor_masked, all_source_tensor, all_affine_matrix
     global dp2_path, dp2_model, cfg, spect_parser, decoder, output_dir
     global B 
 
     # 设置参数
-    B = 5  
+    B = 1
     video_path = './data/figure_five_two.mp4' 
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     lawdnet_model_path = "./pretrain_model/checkpoint_epoch_170.pth"
@@ -102,14 +102,9 @@ def initialize_server():
 
     # 准备数据
     os.makedirs(output_dir, exist_ok=True)
-    video_frames = load_video_frames(video_path, output_dir)
-    if video_frames is None:
-        video_frames = save_video_frames(video_path, 0, None, output_dir)
 
-    video_frames = np.array(video_frames, dtype=np.float32)
-    video_frames = video_frames[..., ::-1]
     
-    landmarks_list = save_landmarks(video_frames, video_path, output_dir, device)
+    # landmarks_list = save_landmarks(video_frames, video_path, output_dir, device)
 
     # 预处理数据
     facealigner = FaceAlign(ratio=1.6, device=device)
@@ -117,6 +112,12 @@ def initialize_server():
     
     preprocessed_data_path = os.path.join(output_dir, f'{video_name}_preprocessed_data.pth')
     if os.path.exists(preprocessed_data_path):
+        video_frames = load_video_frames(video_path, output_dir)
+        video_frames_length = len(video_frames)
+        video_frames_shape = video_frames.shape
+        del video_frames
+        torch.cuda.empty_cache()
+
         print("从本地加载预处理数据...")
         preprocessed_data = torch.load(preprocessed_data_path)
         reference_tensor = preprocessed_data['reference_tensor'].to(device)
@@ -124,12 +125,19 @@ def initialize_server():
         all_source_tensor = preprocessed_data['all_source_tensor'].to(device)
         all_affine_matrix = preprocessed_data['all_affine_matrix'].to(device)
     else:
+        video_frames = load_video_frames(video_path, output_dir)
+        if video_frames is None:
+            video_frames = save_video_frames(video_path, 0, None, output_dir)
+
+        video_frames = np.array(video_frames, dtype=np.float32)
+        video_frames = video_frames[..., ::-1]
+
         print("预处理数据并保存到本地...")
         reference_tensor, \
         all_feed_tensor_masked, \
         all_source_tensor, \
         all_affine_matrix = preprocess_data(video_frames, 
-                                            landmarks_list, 
+                                            # landmarks_list, 
                                             opt, 
                                             B,
                                             output_dir,
@@ -187,12 +195,12 @@ def generate_video():
 def generate_video_with_audio(deepspeech_tensor, audio_path):
     global reference_tensor, all_feed_tensor_masked, all_source_tensor, all_affine_matrix
     
-    len_out = min(len(video_frames), deepspeech_tensor.shape[0]) // B * B
+    len_out = min(video_frames_length, deepspeech_tensor.shape[0]) // B * B
     deepspeech_tensor = deepspeech_tensor[:len_out].to(device)
     
     reference_tensor_expanded = reference_tensor.unsqueeze(0).expand(B, -1, -1, -1, -1).reshape(B, 5 * 3, all_feed_tensor_masked.shape[2], all_feed_tensor_masked.shape[3])
 
-    outframes = np.zeros_like(video_frames[:len_out])
+    outframes = np.zeros((len_out,) + video_frames_shape[1:], dtype=np.uint8)
     
     with torch.no_grad():
         for i in tqdm(range(len_out // B), desc="生成视频帧"):
@@ -219,4 +227,4 @@ def generate_video_with_audio(deepspeech_tensor, audio_path):
 
 if __name__ == "__main__":
     initialize_server()
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5051)
