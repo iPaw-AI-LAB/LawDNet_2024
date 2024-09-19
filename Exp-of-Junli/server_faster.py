@@ -56,13 +56,14 @@ decoder = None
 
 output_dir = None
 B = None
+scripted_net_g = None  # 添加 scripted_net_g
 
 
 def initialize_server():
     global device, net_g, opt, facealigner, sqmasker, video_frames, video_frames_length, video_frames_shape,landmarks_list
     global reference_tensor, all_feed_tensor_masked, all_source_tensor, all_affine_matrix
     global dp2_path, dp2_model, cfg, spect_parser, decoder, output_dir
-    global B 
+    global B, scripted_net_g  # 添加 scripted_net_g
 
     # 设置参数
     B = 1
@@ -103,10 +104,19 @@ def initialize_server():
     # 加载和初始化模型
     net_g = load_and_initialize_model(lawdnet_model_path, opt, device)
 
+    # 创建 TorchScript 模型
+    # print("正在创建 TorchScript 模型...")
+    # B = 1  # 使用批次大小为1进行追踪
+    # example_feed_tensor = torch.randn(B, 3, 468, 320).to(device)
+    # example_reference_tensor = torch.randn(B, 5*3, 468, 320).to(device)
+    # example_audio_tensor = torch.randn(B, 29, 5).to(device)  # 假设音频张量的形状
+    
+    # scripted_net_g = torch.jit.trace(net_g, (example_feed_tensor, example_reference_tensor, example_audio_tensor))
+    # print("TorchScript 模型创建完成")
+
     # 准备数据
     os.makedirs(output_dir, exist_ok=True)
 
-    
     # landmarks_list = save_landmarks(video_frames, video_path, output_dir, device)
 
     # 预处理数据
@@ -204,17 +214,19 @@ def write_frames(video_writer, frame_queue):
         frame_queue.task_done()
 
 def generate_video_with_audio(deepspeech_tensor, audio_path):
-    global reference_tensor, all_feed_tensor_masked, all_source_tensor, all_affine_matrix
+    global reference_tensor, all_feed_tensor_masked, all_source_tensor, all_affine_matrix, scripted_net_g
     
     len_out = min(video_frames_length, deepspeech_tensor.shape[0]) // B * B
     deepspeech_tensor = deepspeech_tensor[:len_out].to(device)
     
-    reference_tensor_expanded = reference_tensor.unsqueeze(0).expand(B, -1, -1, -1, -1).reshape(B, 5 * 3, all_feed_tensor_masked.shape[2], all_feed_tensor_masked.shape[3])
+    # reference_tensor_expanded = reference_tensor.unsqueeze(0).expand(B, -1, -1, -1, -1).reshape(B, 5 * 3, all_feed_tensor_masked.shape[2], all_feed_tensor_masked.shape[3])
+    reference_tensor_expanded = reference_tensor.unsqueeze(0).expand(B, -1, -1, -1, -1)
+    reference_tensor_expanded = reference_tensor_expanded.reshape(B, 5 * 3, all_feed_tensor_masked.shape[2], all_feed_tensor_masked.shape[3])
 
     # 初始化 VideoWriter 和帧队列
     timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
     temp_video_path = os.path.join(output_dir, f"{timestamp_str}_temp_output.mp4")
-    frame_queue = queue.Queue(maxsize=100)  # 限制队列大小以控制内存使用
+    frame_queue = queue.Queue(maxsize=500)  # 限制队列大小以控制内存使用
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     height, width = video_frames_shape[1:3]
     video_writer = cv2.VideoWriter(temp_video_path, fourcc, 25, (width, height))
@@ -230,9 +242,8 @@ def generate_video_with_audio(deepspeech_tensor, audio_path):
             
             feed_tensor_masked = all_feed_tensor_masked[start_idx:end_idx]
             audio_tensor = deepspeech_tensor[start_idx:end_idx].to(device)
-            
-            output_B = net_g(feed_tensor_masked, reference_tensor_expanded, audio_tensor).float().clamp_(0, 1)
-            
+            with torch.cuda.amp.autocast():
+                output_B = net_g(feed_tensor_masked, reference_tensor_expanded, audio_tensor).float().clamp_(0, 1)
             outframes_B = facealigner.recover(output_B * 255.0, all_source_tensor[start_idx:end_idx], all_affine_matrix[start_idx:end_idx]).permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)
             
             for frame in outframes_B:
@@ -244,6 +255,10 @@ def generate_video_with_audio(deepspeech_tensor, audio_path):
     writer_thread.join()
     video_writer.release()
 
+    # 返回静音视频，没拼接音频
+    print("静音视频生成完成")
+    return temp_video_path
+
     # 添加音频
     try:
         video = VideoFileClip(temp_video_path)
@@ -254,10 +269,10 @@ def generate_video_with_audio(deepspeech_tensor, audio_path):
                                 fps=25, 
                                 codec='libx264', 
                                 audio_codec='aac',
-                                preset='ultrafast',
+                                preset='superfast',
                                 bitrate='5000k',
-                                threads=4,
-                                ffmpeg_params=['-crf', '23'])
+                                threads=16,
+                                ffmpeg_params=['-crf', '18'])
     except Exception as e:
         print(f"moviepy 处理失败: {e}")
         print("尝试使用 ffmpeg...")
@@ -284,9 +299,10 @@ def generate_video_with_audio(deepspeech_tensor, audio_path):
             raise
 
     # 清理临时文件
-    os.remove(temp_video_path)
+    # os.remove(temp_video_path)
 
-    return final_output_path
+    # 返回合并音视频的文件
+    # return final_output_path
 
 if __name__ == "__main__":
     initialize_server()
