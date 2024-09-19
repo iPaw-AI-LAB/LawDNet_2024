@@ -21,5 +21,5 @@ def send_audio_for_video_generation(audio_file_path, server_url):
 
 if __name__ == "__main__":
     audio_file_path = "./data/青岛3.wav"
-    server_url = "http://localhost:5000"  # 根据实际情况修改服务器地址
+    server_url = "http://localhost:5051"  # 根据实际情况修改服务器地址
     send_audio_for_video_generation(audio_file_path, server_url)

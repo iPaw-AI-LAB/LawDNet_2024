@@ -22,6 +22,8 @@ from moviepy.editor import VideoFileClip, AudioFileClip
 import time
 from datetime import datetime
 from tqdm import tqdm
+import threading
+import queue
 
 from inference_function_DP2_faster import save_video_frames, \
                                             load_video_frames, \
@@ -192,6 +194,14 @@ def generate_video():
 
     return send_file(result_video_path, mimetype='video/mp4')
 
+def write_frames(video_writer, frame_queue):
+    while True:
+        frame = frame_queue.get()
+        if frame is None:
+            break
+        video_writer.write(frame)
+        frame_queue.task_done()
+
 def generate_video_with_audio(deepspeech_tensor, audio_path):
     global reference_tensor, all_feed_tensor_masked, all_source_tensor, all_affine_matrix
     
@@ -200,8 +210,18 @@ def generate_video_with_audio(deepspeech_tensor, audio_path):
     
     reference_tensor_expanded = reference_tensor.unsqueeze(0).expand(B, -1, -1, -1, -1).reshape(B, 5 * 3, all_feed_tensor_masked.shape[2], all_feed_tensor_masked.shape[3])
 
-    outframes = np.zeros((len_out,) + video_frames_shape[1:], dtype=np.uint8)
-    
+    # 初始化 VideoWriter 和帧队列
+    timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+    temp_video_path = os.path.join(output_dir, f"{timestamp_str}_temp_output.mp4")
+    frame_queue = queue.Queue(maxsize=100)  # 限制队列大小以控制内存使用
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    height, width = video_frames_shape[1:3]
+    video_writer = cv2.VideoWriter(temp_video_path, fourcc, 25, (width, height))
+
+    # 启动帧写入线程
+    writer_thread = threading.Thread(target=write_frames, args=(video_writer, frame_queue))
+    writer_thread.start()
+
     with torch.no_grad():
         for i in tqdm(range(len_out // B), desc="生成视频帧"):
             start_idx = i * B
@@ -213,17 +233,27 @@ def generate_video_with_audio(deepspeech_tensor, audio_path):
             output_B = net_g(feed_tensor_masked, reference_tensor_expanded, audio_tensor).float().clamp_(0, 1)
             
             outframes_B = facealigner.recover(output_B * 255.0, all_source_tensor[start_idx:end_idx], all_affine_matrix[start_idx:end_idx]).permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)
-            outframes[start_idx:end_idx] = outframes_B
+            
+            for frame in outframes_B:
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                frame_queue.put(frame_bgr)
 
-    outframes = outframes.astype(np.uint8)
-    
-    # 生成输出视频路径
-    timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_video_path = os.path.join(output_dir, f"{timestamp_str}_output.mp4")
-    
-    # 保存视频并添加音频
-    return save_video_with_audio(outframes, output_video_path, audio_path, output_dir, fps=25)
+    # 通知写入线程完成
+    frame_queue.put(None)
+    writer_thread.join()
+    video_writer.release()
 
+    # 添加音频
+    video = VideoFileClip(temp_video_path)
+    audio = AudioFileClip(audio_path)
+    final_clip = video.set_audio(audio)
+    final_output_path = os.path.join(output_dir, f"{timestamp_str}_output_with_audio.mp4")
+    final_clip.write_videofile(final_output_path, codec='libx264', audio_codec='aac')
+
+    # 清理临时文件
+    os.remove(temp_video_path)
+
+    return final_output_path
 
 if __name__ == "__main__":
     initialize_server()
