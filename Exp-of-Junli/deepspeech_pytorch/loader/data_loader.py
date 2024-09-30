@@ -185,6 +185,11 @@ class ChunkSpectrogramParser(AudioParser):
             spect = self.compute_spectrogram(y_chunk)
             yield spect
 
+class ChunkSpectrogramParserOfAudioData(ChunkSpectrogramParser):
+    def parse_audio(self, audio, chunk_size_seconds=-1):
+        for y_chunk in self.get_chunks(audio, chunk_size_seconds):
+            spect = self.compute_spectrogram(y_chunk)
+            yield spect
 
 class SpectrogramDataset(Dataset, SpectrogramParser):
     def __init__(self,
