@@ -173,6 +173,10 @@ def load_video_frames(video_path, output_dir):
 
 def reference(model, masked_source, reference, audio_tensor):
     with torch.no_grad():
+        print("lawdnet输入===========================================")
+        print("masked_source.shape:", masked_source.shape)
+        print("reference.shape:", reference.shape)
+        print("audio_tensor.shape:", audio_tensor.shape)
         return model(masked_source, reference, audio_tensor)
     
 
@@ -344,6 +348,10 @@ def generate_video_with_audio(video_frames,
             feed_tensor_masked = all_feed_tensor_masked[start_idx:end_idx]
             audio_tensor = deepspeech_tensor[start_idx:end_idx].to(device)
             
+            # print("lawdnet输入===========================================")
+            # print("feed_tensor_masked.shape:", feed_tensor_masked.shape)
+            # print("reference_tensor_expanded.shape:", reference_tensor_expanded.shape)
+            # print("audio_tensor.shape:", audio_tensor.shape)
             output_B = net_g(feed_tensor_masked, reference_tensor_expanded, audio_tensor).float().clamp_(0, 1)
             
             outframes_B = facealigner.recover(output_B * 255.0, all_source_tensor[start_idx:end_idx], all_affine_matrix[start_idx:end_idx]).permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)

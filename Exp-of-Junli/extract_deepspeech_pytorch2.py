@@ -58,7 +58,7 @@ def run_transcribe(audio_path: str,
             with autocast(device_type=str(device), enabled=(precision == 16)):
                 out_before_softmax, out, output_sizes, hs = model(spect, input_sizes, hs)
                 ###！！
-                # print("需要还没经过softmax的，代码还没改")
+                # print("需要没经过softmax的deepspeech输出")
             all_outs.append(out_before_softmax.cpu())
     all_outs = torch.cat(all_outs, axis=1)  # combine outputs of chunks in one tensor
     decoded_output, decoded_offsets = decoder.decode(all_outs)

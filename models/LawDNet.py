@@ -95,6 +95,9 @@ class LocalAffineWarp(nn.Module):
 
         # regard the channel as the Depth of layers
         Depth_coordinate = torch.linspace(-1+1/C,1-1/C,C,device=device)
+        # Depth_coordinate = torch.linspace(-1 + torch.true_divide(torch.tensor(1), C),
+        #                           1 - torch.true_divide(torch.tensor(1), C),
+        #                           C, device=device)
 
         N = kpoints_normalized.shape[1]
 
@@ -379,6 +382,9 @@ class LawDNet(nn.Module):
     # 混合精度训练
     # @autocast()
     def forward(self, source_img,ref_img,audio_feature):
+        # print('source_img.shape:',source_img.shape)
+        # print('ref_img.shape:',ref_img.shape)
+        # print('audio_feature.shape:',audio_feature.shape)
         with autocast():
             ## source image encoder
             source_in_feature = self.source_in_conv(source_img) # 5*batchsize 256 104 80
