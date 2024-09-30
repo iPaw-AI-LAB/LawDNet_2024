@@ -337,6 +337,15 @@ def generate_video_with_audio(video_frames,
     outframes = np.zeros_like(video_frames[:len_out])
     preprocess_end = time.time()
     print(f"预处理耗时: {preprocess_end - preprocess_start:.2f} 秒")
+
+    # 在主循环之前,创建CUDA Graph
+    static_feed_tensor_masked = torch.randn_like(all_feed_tensor_masked[0:B])
+    static_reference_tensor_expanded = reference_tensor_expanded.clone()
+    static_audio_tensor = torch.randn_like(deepspeech_tensor[0:B])
+
+    g = torch.cuda.CUDAGraph()
+    with torch.cuda.graph(g):
+        static_output = net_g(static_feed_tensor_masked, static_reference_tensor_expanded, static_audio_tensor).float().clamp_(0, 1)
     
     # 主循环部分
     main_loop_start = time.time()
@@ -348,11 +357,16 @@ def generate_video_with_audio(video_frames,
             feed_tensor_masked = all_feed_tensor_masked[start_idx:end_idx]
             audio_tensor = deepspeech_tensor[start_idx:end_idx].to(device)
             
-            # print("lawdnet输入===========================================")
-            # print("feed_tensor_masked.shape:", feed_tensor_masked.shape)
-            # print("reference_tensor_expanded.shape:", reference_tensor_expanded.shape)
-            # print("audio_tensor.shape:", audio_tensor.shape)
-            output_B = net_g(feed_tensor_masked, reference_tensor_expanded, audio_tensor).float().clamp_(0, 1)
+            # 更新静态输入
+            static_feed_tensor_masked.copy_(all_feed_tensor_masked[start_idx:end_idx])
+            static_audio_tensor.copy_(deepspeech_tensor[start_idx:end_idx].to(device))
+            
+            # 重放CUDA Graph
+            g.replay()
+            
+            # 使用CUDA Graph的输出
+            output_B = static_output
+            # output_B = net_g(feed_tensor_masked, reference_tensor_expanded, audio_tensor).float().clamp_(0, 1)
             
             outframes_B = facealigner.recover(output_B * 255.0, all_source_tensor[start_idx:end_idx], all_affine_matrix[start_idx:end_idx]).permute(0, 2, 3, 1).cpu().numpy().astype(np.uint8)
             outframes[start_idx:end_idx] = outframes_B

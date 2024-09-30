@@ -1,7 +1,8 @@
 import os
 import numpy as np
 import torch
-from torch.amp import autocast
+from torch.cuda.amp import autocast # below pytorch 2.0 version, use torch.cuda.amp.autocast
+# from torch.amp import autocast # above pytorch 2.0 version, use torch.amp.autocast
 from deepspeech_pytorch.decoder import Decoder
 from deepspeech_pytorch.loader.data_loader import ChunkSpectrogramParser, ChunkSpectrogramParserOfAudioData
 from deepspeech_pytorch.model import DeepSpeech
@@ -55,7 +56,8 @@ def run_transcribe(audio_path: str,
             spect = spect.view(1, 1, spect.size(0), spect.size(1))
             spect = spect.to(device)
             input_sizes = torch.IntTensor([spect.size(3)]).to(device).int()
-            with autocast(device_type=str(device), enabled=(precision == 16)):
+            # print("str(device):", device)
+            with autocast(enabled=(precision == 16)):
                 out_before_softmax, out, output_sizes, hs = model(spect, input_sizes, hs)
                 ###！！
                 # print("需要没经过softmax的deepspeech输出")
