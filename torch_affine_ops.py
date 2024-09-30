@@ -2,27 +2,59 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 
-def standard_grid(size,batch_size=1,device='cuda'):
+# yihao original
+# def standard_grid(size,batch_size=1,device='cuda'):
+#     """
+#     equivalent to 
+#     grid_trans = torch.eye(4).unsqueeze(0)
+#     F.affine_grid(grid_trans[:,:3,:], torch.Size((1, 3, D,H,W)))
+#     but more efficient and flexible
+
+#     size: (H,W) or (D,H,W)
+#     return: (B,H,W,2) or (B,D,H,W,3)
+#     """
+
+#     dim = len(size)
+#     axis = []
+#     for i in size:
+#         tmp = torch.linspace(-1+1/i, 1-1/i, i, device=device)
+#         axis.append(tmp)
+    
+#     grid = torch.stack(torch.meshgrid(axis), dim=-1)
+#     grid = torch.flip(grid, dims=[-1]).contiguous()
+#     batch_grid = grid.unsqueeze(0).repeat((batch_size,)+(1,)*(dim+1))
+
+#     return batch_grid
+
+# junli version
+def standard_grid(size, batch_size=1, device='cuda'):
     """
-    equivalent to 
+    生成标准网格，等效于但比以下代码更高效和灵活：
     grid_trans = torch.eye(4).unsqueeze(0)
     F.affine_grid(grid_trans[:,:3,:], torch.Size((1, 3, D,H,W)))
-    but more efficient and flexible
 
-    size: (H,W) or (D,H,W)
-    return: (B,H,W,2) or (B,D,H,W,3)
+    参数:
+    size: (H,W) 或 (D,H,W)
+    batch_size: 批次大小
+    device: 计算设备
+
+    返回:
+    (B,H,W,2) 或 (B,D,H,W,3) 的张量
     """
-
     dim = len(size)
-    axis = []
-    for i in size:
-        tmp = torch.linspace(-1+1/i, 1-1/i, i, device=device)
-        axis.append(tmp)
     
-    grid = torch.stack(torch.meshgrid(axis), dim=-1)
+    # 使用 torch.linspace 生成每个维度的坐标
+    coords = [torch.linspace(-1 + 1/i, 1 - 1/i, i, device=device) for i in size]
+    
+    # 使用 torch.meshgrid 生成网格
+    grid = torch.stack(torch.meshgrid(*coords, indexing='ij'), dim=-1)
+    
+    # 翻转最后一个维度并确保连续性
     grid = torch.flip(grid, dims=[-1]).contiguous()
-    batch_grid = grid.unsqueeze(0).repeat((batch_size,)+(1,)*(dim+1))
-
+    
+    # 添加批次维度并重复
+    batch_grid = grid.unsqueeze(0).expand((batch_size,) + (-1,) * (dim + 1))
+    
     return batch_grid
 
 def transform_torch(center, output_size, scale, rotation):

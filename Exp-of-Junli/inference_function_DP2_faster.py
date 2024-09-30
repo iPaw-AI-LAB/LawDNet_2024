@@ -393,7 +393,7 @@ if __name__ == "__main__":
     # audio_path = "../../Chat_TTS/test_success.wav" 
     output_dir = './output_video'
     lawdnet_model_path = "./pretrain_model/checkpoint_epoch_170.pth"
-    BatchSize = 5
+    BatchSize = 20
     mouthsize = '288'
     gpu_index = 0
     output_name = '速度测试'

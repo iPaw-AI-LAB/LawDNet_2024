@@ -225,7 +225,7 @@ class FaceAlign(nn.Module):
 
     return fake_part_alpha*fake_part + out_part_alpha*origin_img
 
-
+  ## yihao original
   def recover(self, fake_part, origin_img, face_align_matrix):
 
     B, C, H, W = origin_img.shape
@@ -269,6 +269,7 @@ class FaceAlign(nn.Module):
     reform_img = reform_img_2.permute(1,0,2,3)
 
     return reform_img
+
 
 
 class SmoothSqMask(nn.Module):
