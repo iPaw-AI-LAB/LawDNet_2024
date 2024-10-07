@@ -20,7 +20,7 @@ from config.config import DINetTrainingOptions
 from deepspeech_pytorch.loader.data_loader import load_audio
 from deepspeech_pytorch.utils import load_model
 from models.LawDNet import LawDNet
-from extract_deepspeech_pytorch2 import transcribe_audio_data
+from extract_deepspeech_pytorch2 import check_and_resample_audio, transcribe_audio_data
 from tensor_processing import FaceAlign, SmoothSqMask
 
 
@@ -144,6 +144,7 @@ def generate_video():
     request_file = request.files['audio']
     request_file.save(tmp_file_path)
 
+    check_and_resample_audio(tmp_file_path)
     pcm_data = load_audio(tmp_file_path)
 
     # 获取 DeepSpeech 特征

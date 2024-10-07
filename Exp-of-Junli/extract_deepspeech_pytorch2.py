@@ -255,8 +255,8 @@ def transcribe_audio_data(audio: torch.Tensor, model: DeepSpeech, precision: int
         deepspeech_tensor = torch.from_numpy(ds_feature_padding[i : i + 5, :]).permute(1, 0).float()
         deepspeech_tensor_all[i] = deepspeech_tensor
 
-    # print('deepspeech_tensor_all:', deepspeech_tensor_all.shape)
-    # print('audio_frame_length:', audio_frame_length)
+    print('deepspeech_tensor_all:', deepspeech_tensor_all.shape)
+    print('audio_frame_length:', audio_frame_length)
 
     return deepspeech_tensor_all, audio_frame_length
 
