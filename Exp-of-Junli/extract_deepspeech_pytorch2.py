@@ -80,7 +80,8 @@ def run_transcribe_tensor(audio: np.ndarray,
             spect = spect.view(1, 1, spect.size(0), spect.size(1))
             spect = spect.to(device)
             input_sizes = torch.IntTensor([spect.size(3)]).to(device).int()
-            with autocast(device_type=str(device), enabled=(precision == 16)):
+            # with autocast(device_type=str(device), enabled=(precision == 16)):
+            with autocast(enabled=(precision == 16)):
                 out_before_softmax, out, output_sizes, hs = model(spect, input_sizes, hs)
             all_outs.append(out_before_softmax.cpu())
     all_outs = torch.cat(all_outs, axis=1)  # combine outputs of chunks in one tensor

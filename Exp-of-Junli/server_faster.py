@@ -259,49 +259,49 @@ def generate_video_with_audio(deepspeech_tensor, audio_path):
     print("静音视频生成完成")
     return temp_video_path
 
-    # 添加音频
-    try:
-        video = VideoFileClip(temp_video_path)
-        audio = AudioFileClip(audio_path)
-        final_clip = video.set_audio(audio)
-        final_output_path = os.path.join(output_dir, f"{timestamp_str}_output_with_audio.mp4")
-        final_clip.write_videofile(final_output_path, 
-                                fps=25, 
-                                codec='libx264', 
-                                audio_codec='aac',
-                                preset='superfast',
-                                bitrate='5000k',
-                                threads=16,
-                                ffmpeg_params=['-crf', '18'])
-    except Exception as e:
-        print(f"moviepy 处理失败: {e}")
-        print("尝试使用 ffmpeg...")
+    # # 添加音频
+    # try:
+    #     video = VideoFileClip(temp_video_path)
+    #     audio = AudioFileClip(audio_path)
+    #     final_clip = video.set_audio(audio)
+    #     final_output_path = os.path.join(output_dir, f"{timestamp_str}_output_with_audio.mp4")
+    #     final_clip.write_videofile(final_output_path, 
+    #                             fps=25, 
+    #                             codec='libx264', 
+    #                             audio_codec='aac',
+    #                             preset='superfast',
+    #                             bitrate='5000k',
+    #                             threads=16,
+    #                             ffmpeg_params=['-crf', '18'])
+    # except Exception as e:
+    #     print(f"moviepy 处理失败: {e}")
+    #     print("尝试使用 ffmpeg...")
         
-        final_output_path = os.path.join(output_dir, f"{timestamp_str}_output_with_audio.mp4")
-        ffmpeg_command = [
-            'ffmpeg',
-            '-i', temp_video_path,
-            '-i', audio_path,
-            '-c:v', 'libx264',
-            '-preset', 'ultrafast',
-            '-crf', '23',
-            '-c:a', 'aac',
-            '-b:a', '192k',
-            '-shortest',
-            final_output_path
-        ]
+    #     final_output_path = os.path.join(output_dir, f"{timestamp_str}_output_with_audio.mp4")
+    #     ffmpeg_command = [
+    #         'ffmpeg',
+    #         '-i', temp_video_path,
+    #         '-i', audio_path,
+    #         '-c:v', 'libx264',
+    #         '-preset', 'ultrafast',
+    #         '-crf', '23',
+    #         '-c:a', 'aac',
+    #         '-b:a', '192k',
+    #         '-shortest',
+    #         final_output_path
+    #     ]
         
-        try:
-            subprocess.run(ffmpeg_command, check=True)
-            print("ffmpeg 处理成功")
-        except subprocess.CalledProcessError as e:
-            print(f"ffmpeg 处理失败: {e}")
-            raise
+    #     try:
+    #         subprocess.run(ffmpeg_command, check=True)
+    #         print("ffmpeg 处理成功")
+    #     except subprocess.CalledProcessError as e:
+    #         print(f"ffmpeg 处理失败: {e}")
+    #         raise
 
-    # 清理临时文件
+    # # 清理临时文件
     # os.remove(temp_video_path)
 
-    # 返回合并音视频的文件
+    # # 返回合并音视频的文件
     # return final_output_path
 
 if __name__ == "__main__":

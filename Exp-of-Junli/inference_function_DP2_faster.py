@@ -354,12 +354,20 @@ def generate_video_with_audio(video_frames,
             start_idx = i * B
             end_idx = (i + 1) * B
             
-            feed_tensor_masked = all_feed_tensor_masked[start_idx:end_idx]
-            audio_tensor = deepspeech_tensor[start_idx:end_idx].to(device)
+            # feed_tensor_masked = all_feed_tensor_masked[start_idx:end_idx]
+            # audio_tensor = deepspeech_tensor[start_idx:end_idx].to(device)
             
             # 更新静态输入
             static_feed_tensor_masked.copy_(all_feed_tensor_masked[start_idx:end_idx])
             static_audio_tensor.copy_(deepspeech_tensor[start_idx:end_idx].to(device))
+
+            # # 从本地读取static_audio_tensor
+            # print("为了测试华南代码，从本地读取static_audio_tensor")
+            # audio_tensor_path = f'audio_tensor_{i}.pt'
+            # if os.path.exists(audio_tensor_path):
+            #     static_audio_tensor.copy_(torch.load(audio_tensor_path).to(device))
+            # else:
+            #     print(f"警告: 未找到音频张量文件 {audio_tensor_path}，使用默认值")
             
             # 重放CUDA Graph
             g.replay()
@@ -393,7 +401,7 @@ if __name__ == "__main__":
     # audio_path = "../../Chat_TTS/test_success.wav" 
     output_dir = './output_video'
     lawdnet_model_path = "./pretrain_model/checkpoint_epoch_170.pth"
-    BatchSize = 20
+    BatchSize = 1
     mouthsize = '288'
     gpu_index = 0
     output_name = '速度测试'
